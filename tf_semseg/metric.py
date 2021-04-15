@@ -1,0 +1,152 @@
+import tensorflow as tf
+import numpy as np
+
+dont_care_threshold = 0.9
+
+class BoundaryLabelRelaxed:
+    def __init__(self, inner_metric, pool_size):
+        self.pool_size = pool_size
+        self.inner_metric = inner_metric
+        self.name = "BoundaryLabelRelaxed" + str(self.pool_size) + "." + inner_metric.name
+
+    def update_state(self, y_true, y_pred):
+        y_true = tf.nn.max_pool(y_true, [1] + [self.pool_size] * (y_true.shape.ndims - 2) + [1], strides=1, padding="SAME")
+        self.inner_metric.update_state(y_true, y_pred)
+
+    def result(self):
+        return self.inner_metric.result()
+
+    def reset_states(self):
+        self.inner_metric.reset_states()
+
+class ConfusionMatrix(tf.keras.metrics.Metric):
+    def __init__(self, classes_num, *args, allow_multiple_groundtruths=True, allow_dontcare_prediction=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.classes_num = classes_num
+        self.allow_multiple_groundtruths = allow_multiple_groundtruths
+        self.allow_dontcare_prediction = allow_dontcare_prediction
+        self.total_cm = self.add_weight(
+            'total_confusion_matrix',
+            shape=(classes_num, classes_num),
+            initializer=tf.zeros_initializer,
+            dtype=tf.float64)
+
+    def update_state(self, y_true, y_pred):
+        if self.allow_dontcare_prediction:
+            y_pred_valid = tf.reduce_sum(y_pred, axis=-1) > dont_care_threshold
+        else:
+            tf.assert_greater(tf.reduce_sum(y_pred, axis=-1), dont_care_threshold)
+
+        y_pred = tf.argmax(y_pred, axis=-1)
+        if self.allow_multiple_groundtruths:
+            y_pred_one_hot = tf.one_hot(y_pred, depth=y_true.shape[-1])
+            matches = tf.reduce_sum(y_true * y_pred_one_hot, axis=-1) > dont_care_threshold
+            y_true = tf.where(matches, y_pred, tf.argmax(y_true - y_pred_one_hot, axis=-1))
+        else:
+            y_true = tf.argmax(y_true, axis=-1)
+
+        if self.allow_dontcare_prediction:
+            y_pred = tf.where(y_pred_valid, y_pred, self.classes_num)
+
+        y_pred = tf.reshape(y_pred, [-1])
+        y_true = tf.reshape(y_true, [-1])
+
+        if self.allow_dontcare_prediction:
+            sample_weight = tf.cast(tf.math.logical_and(tf.math.less(y_true, self.classes_num), tf.math.less(y_pred, self.classes_num)), tf.int32)
+            y_pred = tf.minimum(tf.cast(y_pred, tf.int32), self.classes_num - 1)
+        else:
+            sample_weight = tf.cast(tf.math.less(y_true, self.classes_num), tf.int32)
+        y_true = tf.minimum(tf.cast(y_true, tf.int32), self.classes_num - 1)
+
+        cm = tf.math.confusion_matrix(y_true, y_pred, self.classes_num, weights=sample_weight, dtype=tf.float64)
+        return self.total_cm.assign_add(cm)
+
+    def result(self):
+        return self.total_cm
+
+    def reset_states(self):
+        tf.keras.backend.set_value(self.total_cm, np.zeros((self.classes_num, self.classes_num)))
+
+    def get_config(self):
+        config = {'classes_num': self.classes_num}
+        base_config = super(tf.keras.metrics.Metric, self).get_config()
+        return dict(list(base_config.items()) + list(config.items()))
+
+class ClassIoUs(ConfusionMatrix):
+    def __init__(self, *args, name = "ClassIoUs", **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+
+    def result(self):
+        cm = super().result()
+
+        sum_over_row = tf.cast(tf.reduce_sum(cm, axis=0), dtype=self._dtype)
+        sum_over_col = tf.cast(tf.reduce_sum(cm, axis=1), dtype=self._dtype)
+        true_positives = tf.cast(tf.linalg.diag_part(cm), dtype=self._dtype)
+
+        denominator = sum_over_row + sum_over_col - true_positives
+
+        return true_positives / denominator
+
+class MeanIoU(ClassIoUs):
+    def __init__(self, *args, name = "MeanIoU", **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+
+    def result(self):
+        ious = super().result()
+
+        num_valid_entries = tf.reduce_sum(tf.cast(tf.math.logical_not(tf.is_nan(ious)), dtype=self._dtype))
+        ious = tf.where(tf.is_nan(ious), tf.zeros_like(ious), ious)
+
+        return tf.math.divide_no_nan(tf.reduce_sum(ious, name='mean_iou'), num_valid_entries)
+
+class Accuracy(ConfusionMatrix):
+    def __init__(self, *args, name="Accuracy", **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+
+    def result(self):
+        cm = super().result()
+
+        total = tf.cast(tf.reduce_sum(cm), dtype=self._dtype)
+        true_positives = tf.cast(tf.reduce_sum(tf.linalg.diag_part(cm)), dtype=self._dtype)
+
+        return true_positives / total
+
+class ClassAccuracies(ConfusionMatrix):
+    def __init__(self, *args, name="ClassAccuracies", **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+
+    def result(self):
+        cm = super().result()
+
+        total = tf.cast(tf.reduce_sum(cm, axis=1), dtype=self._dtype)
+        true_positives = tf.cast(tf.linalg.diag_part(cm), dtype=self._dtype)
+
+        return true_positives / total
+
+class MeanClassAccuracy(ClassAccuracies):
+    def __init__(self, *args, name="MeanClassAccuracy", **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+
+    def result(self):
+        class_accs = super().result()
+
+        valid = tf.where(tf.math.is_nan(class_accs), tf.zeros_like(class_accs), 1)
+        class_accs = tf.where(tf.math.is_nan(class_accs), tf.zeros_like(class_accs), class_accs)
+
+        return tf.reduce_sum(class_accs) / tf.reduce_sum(valid)
+
+class ClassAccuracyStd(ClassAccuracies):
+    def __init__(self, *args, name="ClassAccuracyStd", **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+
+    def result(self):
+        class_accs = super().result()
+
+        num_valid = tf.reduce_sum(tf.where(tf.math.is_nan(class_accs), tf.zeros_like(class_accs), 1))
+
+        mean = tf.reduce_sum(tf.where(tf.math.is_nan(class_accs), tf.zeros_like(class_accs), class_accs), keepdims=True) / num_valid
+        diffs = tf.where(tf.math.is_nan(class_accs), tf.zeros_like(class_accs), class_accs - mean)
+
+        std = tf.math.sqrt(tf.reduce_sum(diffs * diffs)) / num_valid
+
+        return std
