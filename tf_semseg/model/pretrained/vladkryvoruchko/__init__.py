@@ -18,7 +18,7 @@ def pspnet_resnet_v1s_101_cityscapes():
     model = tf.keras.Model(inputs=[input], outputs=[x])
 
     # https://github.com/Vladkryvoruchko/PSPNet-Keras-tensorflow
-    url = "https://www.dropbox.com/s/gdtjzjkox999xpg/pspnet101_cityscapes.h5?dl=1"
+    url = "https://www.dropbox.com/s/c17g94n946tpalb/pspnet101_cityscapes.h5?dl=1"
     weights = tf.keras.utils.get_file("pspnet101_cityscapes.h5", url)
 
     with h5py.File(weights, "r") as f:
