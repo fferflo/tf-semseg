@@ -46,8 +46,11 @@ def stem(x, type, name, norm=default_norm): # For variants, see: https://github.
 
 
 
-def basic_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-basic-v1", block=conv_norm_relu, norm=default_norm, **kwargs):
+def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basic-v1", block=conv_norm_relu, norm=default_norm, **kwargs):
     orig_x = x
+
+    if filters is None:
+        filters = x.shape[-1]
 
     x = block(x, filters=filters, stride=stride, dilation_rate=dilation_rate, name=join(name, "1"), **kwargs)
 
@@ -77,8 +80,9 @@ def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bott
     return x
 
 def resnet(x, block, num_residual_units, filters, dilation_rates, strides, name=None, stem="b", norm=default_norm, **kwargs):
-    stem_func = globals()["stem"] # Variable has the same name as the function
-    x = stem_func(x, stem, name=join(name, "stem_" + stem), norm=norm)
+    if stem != None:
+        stem_func = globals()["stem"] # Variable has the same name as the function
+        x = stem_func(x, stem, name=join(name, "stem_" + stem), norm=norm)
 
     # Residual blocks
     for block_index in range(len(num_residual_units)):
