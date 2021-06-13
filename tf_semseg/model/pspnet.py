@@ -6,7 +6,24 @@ import tensorflow as tf
 def interpolate_block(x, level, resize_method, filters, name=None, config=config.Config()):
     orig_x = x
 
-    x = tf.image.resize(x, tf.stack([level, level]), method="area")
+    # Variant 1: Does not have gradients
+    # x = tf.image.resize(x, tf.stack([level, level]), method="area")
+
+    # Variant 2: Not working, since pooling currently does not allow dynamic kernel sizes and strides
+    # pool_size = tf.cast(tf.math.ceil(tf.shape(x)[1:-1] / level), "int32")
+    # x = AveragePool(pool_size=pool_size, strides=pool_size, padding="same")(x)
+
+    # Variant 3: Might be slower than other variants
+    def pool(x):
+        for axis in range(1, len(x.shape) - 1):
+            split_bounds = tf.cast(tf.range(0, level + 1, dtype="float32") / tf.cast(level, "float32") * tf.cast(tf.shape(x)[axis], "float32"), "int32")
+            size_splits = split_bounds[1:] - split_bounds[:-1]
+            splits = tf.split(x, size_splits, axis=axis, num=level)
+            splits = [tf.reduce_mean(split, axis=axis) for split in splits]
+            x = tf.stack(splits, axis=axis)
+        return x
+    x = tf.keras.layers.Lambda(pool, output_shape=tuple([None] + [level] * (len(x.shape) - 2) + [x.shape[-1]]))(x)
+
     x = config.conv(x, filters, kernel_size=1, strides=1, name=join(name, "conv"), use_bias=False)
     x = config.norm(x, name=join(name, "norm"))
     x = config.act(x)
