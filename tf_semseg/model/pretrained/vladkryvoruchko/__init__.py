@@ -2,16 +2,28 @@ import tensorflow as tf
 import numpy as np
 import sys, re, h5py
 from ... import resnet, pspnet, decode
+from ...config import Config
+from ...util import *
 
-def pspnet_resnet_v1s_101_cityscapes():
+def preprocess(color):
+    color = color - np.array([123.68, 116.779, 103.939])
+    color = color[:, :, ::-1]
+    return color
+
+def pspnet_resnet_v1s_101_cityscapes(): # Expects BGR input
     input = tf.keras.layers.Input((713, 713, 3))
 
-    batchnorm = lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, **kwargs)(x)
+    config = Config(
+        mode="pytorch", # Same as caffe
+        norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x)
+    )
 
     x = input
-    x = resnet.resnet_v1_101(x, dilated=True, stem="s", norm=batchnorm)
-    x = pspnet.pspnet(x, bin_sizes=[6, 3, 2, 1], norm=batchnorm)
-    x = decode.decode(x, 19)
+    x = resnet.resnet_v1_101(x, dilated=True, stem="s", config=config)
+    x = pspnet.psp(x, bin_sizes=[6, 3, 2, 1], resize_method="bilinear", config=config)
+    x = conv_norm_act(x, filters=512, kernel_size=3, stride=1, name="final", config=config)
+    x = tf.keras.layers.Dropout(0.1)(x) # TODO: move dropout into config
+    x = decode.decode(x, 19, config=config)
     x = tf.compat.v1.image.resize(x, input.shape[1:-1], align_corners=True) # tf.image.resize is not compatible with trained weights
     x = tf.keras.layers.Softmax()(x)
 
@@ -98,7 +110,7 @@ def pspnet_resnet_v1s_101_cityscapes():
                         weights_left.remove(name)
                     continue
 
-                if layer.name.startswith("psp/final_"):
+                if layer.name.startswith("final"):
                     name = "conv5_4"
                     if layer.name.endswith("conv"):
                         assert "bias" not in weights[name]

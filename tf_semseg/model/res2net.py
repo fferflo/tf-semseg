@@ -1,23 +1,23 @@
 import tensorflow as tf
 from .util import *
-from . import resnet
+from . import resnet, config
 
-def hierarchical_conv(x, block=conv_norm_relu, scales=4, stride=1, kernel_size=3, name="res2net-conv", **kwargs):
+def hierarchical_conv(x, block=conv_norm_act, scales=4, stride=1, kernel_size=3, name="res2net-conv", config=config.Config(), **kwargs):
     assert scales >= 2
 
     splits = tf.split(x, num_or_size_splits=scales, axis=-1)
 
     # Split 1
     if stride != 1:
-        splits[0] = AveragePool(pool_size=kernel_size, strides=stride, name=join(name, "scale1"))(splits[0])
+        splits[0] = config.avgpool(splits[0], pool_size=kernel_size, strides=stride, name=join(name, "scale1"))
 
     # Split 2
-    splits[1] = block(splits[1], filters=splits[1].shape[-1], stride=stride, kernel_size=kernel_size, name=join(name, "scale2"), **kwargs)
+    splits[1] = block(splits[1], filters=splits[1].shape[-1], stride=stride, kernel_size=kernel_size, name=join(name, "scale2"), config=config, **kwargs)
 
     # Splits 3...
     for s in range(2, scales):
         splits[s] = splits[s] + splits[s - 1]
-        splits[s] = block(splits[s], filters=splits[1].shape[-1], stride=stride, kernel_size=kernel_size, name=join(name, "scale" + str(s + 1)))
+        splits[s] = block(splits[s], filters=splits[1].shape[-1], stride=stride, kernel_size=kernel_size, name=join(name, "scale" + str(s + 1)), config=config)
 
     x = tf.keras.layers.Concatenate()(splits)
 

@@ -18,11 +18,14 @@ setup(
         "imageio",
         "numpy",
         "h5py",
+        "google_drive_downloader",
+        "torch",
+        "distinctipy",
     ],
     classifiers=[
         "Development Status :: 3 - Alpha",
         "Intended Audience :: Developers",
         "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
-  ],
+    ],
 )

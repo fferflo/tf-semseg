@@ -94,8 +94,8 @@ class MeanIoU(ClassIoUs):
     def result(self):
         ious = super().result()
 
-        num_valid_entries = tf.reduce_sum(tf.cast(tf.math.logical_not(tf.is_nan(ious)), dtype=self._dtype))
-        ious = tf.where(tf.is_nan(ious), tf.zeros_like(ious), ious)
+        num_valid_entries = tf.reduce_sum(tf.cast(tf.math.logical_not(tf.math.is_nan(ious)), dtype=self._dtype))
+        ious = tf.where(tf.math.is_nan(ious), tf.zeros_like(ious), ious)
 
         return tf.math.divide_no_nan(tf.reduce_sum(ious, name='mean_iou'), num_valid_entries)
 
