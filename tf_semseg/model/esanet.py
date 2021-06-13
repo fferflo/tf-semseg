@@ -11,8 +11,8 @@ def stem(rgb, depth, se_reduction=16, name=None, config=config.Config()):
     rgb = resnet_stem_b_no_pool(rgb, name=join(name, "stem_rgb"))
     depth = resnet_stem_b_no_pool(depth, name=join(name, "stem_depth"))
 
-    rgb_se = senet.squeeze_excite(rgb, reduction=se_reduction, name=join(name, "se_rgb"), config=config)
-    depth_se = senet.squeeze_excite(depth, reduction=se_reduction, name=join(name, "se_depth"), config=config)
+    rgb_se = senet.squeeze_excite_channel(rgb, reduction=se_reduction, name=join(name, "se_rgb"), config=config)
+    depth_se = senet.squeeze_excite_channel(depth, reduction=se_reduction, name=join(name, "se_depth"), config=config)
 
     rgb = rgb_se + depth_se
 
@@ -36,7 +36,7 @@ def shortcut(enc_x, dec_x, name, config=config.Config()):
 
     return enc_x + dec_x
 
-def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, strides, name=None, psp_bin_sizes=[1, 5], block=erfnet.non_bottleneck_block_1d, se_reduction=16, config=config.Config()):
+def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, strides, name=None, psp_bin_sizes=[1, 5], block=erfnet.non_bottleneck_block_1d, se_reduction=16, decoder_filters=[512, 256, 128], num_decoder_units=[3, 3, 3], config=config.Config()):
     rgb, depth = globals()["stem"](rgb, depth, se_reduction=se_reduction, name=join(name, "stem_b"), config=config)
 
     encoder_blocks = []
@@ -54,8 +54,8 @@ def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, str
             rgb = unit(rgb, name=join(name, "encode_rgb"))
             depth = unit(depth, name=join(name, "encode_depth"))
 
-        rgb_se = senet.squeeze_excite(rgb, reduction=se_reduction, name=join(name, f"block{block_index + 1}", "se_rgb"), config=config)
-        depth_se = senet.squeeze_excite(depth, reduction=se_reduction, name=join(name, f"block{block_index + 1}", "se_depth"), config=config)
+        rgb_se = senet.squeeze_excite_channel(rgb, reduction=se_reduction, name=join(name, f"block{block_index + 1}", "se_rgb"), config=config)
+        depth_se = senet.squeeze_excite_channel(depth, reduction=se_reduction, name=join(name, f"block{block_index + 1}", "se_depth"), config=config)
 
         rgb = rgb_se + depth_se
 
@@ -70,9 +70,6 @@ def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, str
         config=config
     )
     encoder_blocks[-1] = conv_norm_act(encoder_blocks[-1], filters=encoder_blocks[-1].shape[-1] // 2, kernel_size=1, stride=1, name=join(name, "psp", "final"), config=config)
-
-    decoder_filters = [512, 256, 128]
-    num_decoder_units = [3, 3, 3]
 
     # Decoder
     x = encoder_blocks[-1]

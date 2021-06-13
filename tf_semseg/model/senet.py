@@ -2,17 +2,32 @@ import tensorflow as tf
 from . import config
 from .util import *
 
-def squeeze_excite(x, reduction=16, filters=None, name="squeeze_excite", config=config.Config()):
+def squeeze_excite_channel(x, reduction, filters=None, name="squeeze_excite_channel", config=config.Config()):
     x_orig = x
     if filters is None:
         filters = x.shape[-1]
 
     x = tf.reduce_mean(x, axis=list(range(len(x.shape)))[1:-1], keepdims=True)
-    x = tf.keras.layers.Reshape([1] * (len(x_orig.shape) - 2) + [x.shape[-1]])(x)
     x = config.conv(x, filters // reduction, kernel_size=1, use_bias=True, name=join(name, "conv1"))
     x = config.act(x)
     x = config.conv(x, filters, kernel_size=1, use_bias=True, name=join(name, "conv2"))
     x = tf.keras.layers.Activation("sigmoid")(x)
 
     x = x_orig * x
+    return x
+
+def squeeze_excite_spatial(x, name="squeeze_excite_spatial", config=config.Config()):
+    x_orig = x
+
+    x = config.conv(x, 1, kernel_size=1, use_bias=True, name=join(name, "conv"))
+    x = tf.keras.layers.Activation("sigmoid")(x)
+
+    x = x_orig * x
+    return x
+
+def squeeze_excite_concurrent(x, reduction, name="squeeze_excite_concurrent", config=config.Config()):
+    x_channel = squeeze_excite_channel(x, reduction=reduction, name=join(name, "channel"), config=config)
+    x_spatial = squeeze_excite_spatial(x, reduction=reduction, name=join(name, "spatial"), config=config)
+
+    x = tf.math.maximum(x_channel, x_spatial)
     return x
