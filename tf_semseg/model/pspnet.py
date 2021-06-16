@@ -35,6 +35,6 @@ def psp(x, resize_method="bilinear", filters=None, name="psp", bin_sizes=[6, 3, 
     if filters is None:
         filters = x.shape[-1] // len(bin_sizes)
 
-    x = tf.keras.layers.Concatenate()([x] + [interpolate_block(x, bin_size, resize_method, filters=filters, name=join(name, f"pool{bin_size}"), config=config) for bin_size in bin_sizes])
+    x = tf.concat([x] + [interpolate_block(x, bin_size, resize_method, filters=filters, name=join(name, f"pool{bin_size}"), config=config) for bin_size in bin_sizes], axis=-1)
 
     return x

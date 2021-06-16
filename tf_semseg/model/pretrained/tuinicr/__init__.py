@@ -4,6 +4,7 @@ from google_drive_downloader import GoogleDriveDownloader as gdd
 import os, pyunpack
 import numpy as np
 from ...config import Config
+import tf_semseg
 
 color_mean = np.asarray([0.485, 0.456, 0.406])
 color_std = np.asarray([0.229, 0.224, 0.225])
@@ -120,43 +121,6 @@ def esanet_resnet_v1b_34_nbt1d_nyuv2(): # Expects depth as mm and rgb in [0.0, 2
     if not os.path.isfile(weights_uncompressed):
         pyunpack.Archive(download_file).extractall(os.path.dirname(download_file))
 
-    import torch
+    tf_semseg.model.pretrained.weights.load_pth(weights_uncompressed, model, convert_name, ignore=lambda name: "side_output" in name)
 
-    all_weights = dict(torch.load(weights_uncompressed, map_location=torch.device("cpu"))["state_dict"])
-    def get_weight(key):
-        if not key in all_weights:
-            print(f"Variable {key} not found in {os.path.basename(download_file)}")
-            os._exit(-1)
-        result = all_weights[key]
-        del all_weights[key]
-        return np.asarray(result)
-    for layer in model.layers:
-        if len(layer.get_weights()) > 0:
-            key = convert_name(layer.name)
-
-            if "conv" in layer.name:
-                weights = get_weight(key + ".weight")
-                weights = np.transpose(weights, (2, 3, 1, 0))
-                if not layer.bias is None:
-                    bias = get_weight(key + ".bias")
-                    layer.set_weights([weights, bias])
-                else:
-                    assert (key + ".bias") not in all_weights
-                    layer.set_weights([weights])
-            elif "norm" in layer.name:
-                weights = get_weight(key + ".weight")
-                bias = get_weight(key + ".bias")
-                running_mean = get_weight(key + ".running_mean")
-                running_var = get_weight(key + ".running_var")
-                layer.set_weights([weights, bias, running_mean, running_var])
-            else:
-                print(f"Invalid type of layer {layer.name}")
-                os._exit(-1)
-    for key in list(all_weights.keys()):
-        if "num_batches_tracked" in key or "side_output" in key:
-            del all_weights[key]
-    keys = list(all_weights.keys())
-    if len(keys) > 0:
-        print(f"Failed to find layer for torch variables: {keys}")
-        os._exit(-1)
     return model

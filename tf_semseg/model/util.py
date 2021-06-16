@@ -12,10 +12,10 @@ def join(*args):
     return result
 # TODO: conv_norm_act has param stride, config.conv has param strides
 # TODO: move to config?
-def conv_norm_act(x, filters=None, stride=1, name=None, kernel_size=3, dilation_rate=1, groups=1, config=config.Config()):
+def conv_norm_act(x, filters=None, stride=1, name=None, kernel_size=3, dilation_rate=1, groups=1, use_bias=False, config=config.Config()):
     if filters is None:
         filters = x.shape[-1]
-    x = config.conv(x, filters, kernel_size=kernel_size, strides=stride, groups=groups, dilation_rate=dilation_rate, use_bias=False, padding="same", name=join(name, "conv"))
+    x = config.conv(x, filters, kernel_size=kernel_size, strides=stride, groups=groups, dilation_rate=dilation_rate, use_bias=use_bias, padding="same", name=join(name, "conv"))
     x = config.norm(x, name=join(name, "norm"))
     x = config.act(x)
     return x

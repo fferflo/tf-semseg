@@ -7,4 +7,7 @@ from . import pspnet
 from . import unet
 from . import erfnet
 from . import esanet
+from . import hrnet
+from . import ocr
+from . import transformer
 from . import pretrained

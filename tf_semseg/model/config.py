@@ -62,14 +62,17 @@ def get_pytorch_same_padding(dims, kernel_size, dilation=1):
     padding = np.broadcast_to(padding, (dims,))
     return tuple(padding.tolist())
 
-def ZeroPad(*args, **kwargs):
+def ZeroPad(padding, *args, **kwargs):
     def constructor(x):
         if len(x.get_shape()) == 3:
-            return tf.keras.layers.ZeroPadding1D(*args, **kwargs)(x)
+            keras_padding = padding
+            if isinstance(keras_padding, tuple):
+                keras_padding = keras_padding[0]
+            return tf.keras.layers.ZeroPadding1D(padding=keras_padding, *args, **kwargs)(x)
         elif len(x.get_shape()) == 4:
-            return tf.keras.layers.ZeroPadding2D(*args, **kwargs)(x)
+            return tf.keras.layers.ZeroPadding2D(padding=padding, *args, **kwargs)(x)
         elif len(x.get_shape()) == 5:
-            return tf.keras.layers.ZeroPadding3D(*args, **kwargs)(x)
+            return tf.keras.layers.ZeroPadding3D(padding=padding, *args, **kwargs)(x)
         else:
             assert False, "Unsupported number of dimensions"
     return constructor
