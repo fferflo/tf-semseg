@@ -10,7 +10,7 @@ def default_act(x, **kwargs):
 default_mode = "tensorflow"
 
 class Config:
-    def __init__(self, norm=default_norm, act=default_act, mode=default_mode):
+    def __init__(self, norm=default_norm, act=default_act, mode=default_mode, resize_align_corners=False):
         assert mode in ["tensorflow", "pytorch"]
 
         def conv(x, *args, **kwargs):
@@ -41,6 +41,11 @@ class Config:
         self.avgpool = avgpool
 
         self.upsample = lambda x, *args, **kwargs: UpSample(*args, **kwargs)(x)
+
+        if resize_align_corners:
+            self.resize = lambda x, shape, method: tf.compat.v1.image.resize(x, shape, method=method, align_corners=True)
+        else:
+            self.resize = lambda x, shape, method: tf.image.resize(x, shape, method=method)
 
         self.norm = norm
         self.act = act

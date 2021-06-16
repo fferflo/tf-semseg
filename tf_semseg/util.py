@@ -34,8 +34,9 @@ def colorize(segmentation, image=None, class_to_color=None, classes_num=None, do
             classes_num = tf.math.reduce_max(segmentation).numpy() + 1
         class_to_color = np.asarray(distinctipy.get_colors(classes_num)) * 255.0
     else:
-        if class_to_color == "cityscapes":
-            class_to_color = cityscapes_class_to_color
+        if isinstance(class_to_color, str):
+            if class_to_color == "cityscapes":
+                class_to_color = cityscapes_class_to_color
         if not classes_num is None:
             assert classes_num == len(class_to_color)
         else:

@@ -7,7 +7,7 @@ def interpolate_block(x, level, resize_method, filters, name=None, config=config
     orig_x = x
 
     # Variant 1: Does not have gradients
-    # x = tf.image.resize(x, tf.stack([level, level]), method="area")
+    # x = config.resize(x, tf.stack([level, level]), method="area")
 
     # Variant 2: Not working, since pooling currently does not allow dynamic kernel sizes and strides
     # pool_size = tf.cast(tf.math.ceil(tf.shape(x)[1:-1] / level), "int32")
@@ -27,7 +27,7 @@ def interpolate_block(x, level, resize_method, filters, name=None, config=config
     x = config.conv(x, filters, kernel_size=1, strides=1, name=join(name, "conv"), use_bias=False)
     x = config.norm(x, name=join(name, "norm"))
     x = config.act(x)
-    x = tf.image.resize(x, tf.shape(orig_x)[1:-1], method=resize_method)
+    x = config.resize(x, tf.shape(orig_x)[1:-1], method=resize_method)
 
     return x
 

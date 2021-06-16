@@ -23,7 +23,7 @@ def stem(rgb, depth, se_reduction=16, name=None, config=config.Config()):
 
 def upsample(x, factor, name=None, config=config.Config()):
     filters = x.shape[-1]
-    x = tf.image.resize(x, factor * tf.shape(x)[1:-1], method="nearest")
+    x = config.resize(x, factor * tf.shape(x)[1:-1], method="nearest")
     x = config.conv(x, filters, kernel_size=3, groups=filters, name=join(name, "conv"), use_bias=True, padding="same")
     return x
 

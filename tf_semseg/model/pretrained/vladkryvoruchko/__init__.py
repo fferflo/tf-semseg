@@ -10,12 +10,13 @@ def preprocess(color):
     color = color[:, :, ::-1]
     return color
 
-def pspnet_resnet_v1s_101_cityscapes(): # Expects BGR input
-    input = tf.keras.layers.Input((713, 713, 3))
+def pspnet_resnet_v1s_101_cityscapes(): # Expects BGR input, trained for size (713, 713)
+    input = tf.keras.layers.Input((None, None, 3))
 
     config = Config(
         mode="pytorch", # Same as caffe
-        norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x)
+        norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x),
+        resize_align_corners=True
     )
 
     x = input
@@ -23,8 +24,7 @@ def pspnet_resnet_v1s_101_cityscapes(): # Expects BGR input
     x = pspnet.psp(x, bin_sizes=[6, 3, 2, 1], resize_method="bilinear", config=config)
     x = conv_norm_act(x, filters=512, kernel_size=3, stride=1, name="final", config=config)
     x = tf.keras.layers.Dropout(0.1)(x) # TODO: move dropout into config
-    x = decode.decode(x, 19, config=config)
-    x = tf.compat.v1.image.resize(x, input.shape[1:-1], align_corners=True) # tf.image.resize is not compatible with trained weights
+    x = decode.decode_resize(x, 19, tf.shape(input)[1:-1], config=config)
     x = tf.keras.layers.Softmax()(x)
 
     model = tf.keras.Model(inputs=[input], outputs=[x])
