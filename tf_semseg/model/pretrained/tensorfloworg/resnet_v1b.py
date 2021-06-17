@@ -1,7 +1,7 @@
 import tensorflow as tf
 import pyunpack, os, sys
-from .. import resnet
-
+from ... import resnet
+# TODO: refactor this, add preprocess and config
 def load_weights(input, output, url):
     weights_compressed = tf.keras.utils.get_file(url.split("/")[-1], url)
     weights_uncompressed = weights_compressed[:-len("_2016_08_28.tar.gz")] + ".ckpt"

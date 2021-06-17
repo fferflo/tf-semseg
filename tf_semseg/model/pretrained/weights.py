@@ -8,10 +8,15 @@ def load_pth(file, model, convert_name, ignore=None):
     all_weights = dict(torch.load(file, map_location=torch.device("cpu")))
     if "state_dict" in all_weights:
         all_weights = all_weights["state_dict"]
+    # for k in all_weights.keys():
+    #     print(k)
+    # for layer in model.layers:
+    #     if len(layer.get_weights()) > 0:
+    #         print(layer.name)
     def get_weight(key):
         if not key in all_weights:
-            print(f"Variable {key} not found in hrnet_cs_8090_torch11.pth")
-            os._exit(-1)
+            print(f"Variable {key} not found in {os.path.basename(file)}")
+            sys.exit(-1)
         result = all_weights[key]
         del all_weights[key]
         return np.asarray(result)
@@ -38,7 +43,7 @@ def load_pth(file, model, convert_name, ignore=None):
                 layer.set_weights([weights, bias, running_mean, running_var])
             else:
                 print(f"Invalid type of layer {layer.name}")
-                os._exit(-1)
+                sys.exit(-1)
     for key in list(all_weights.keys()):
         if "num_batches_tracked" in key or (not ignore is None and ignore(key)):
             del all_weights[key]

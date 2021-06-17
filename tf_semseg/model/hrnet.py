@@ -7,11 +7,11 @@ def stem(x, name=None, config=config.Config()):
     x = conv_norm_act(x, filters=64, kernel_size=3, stride=2, name=join(name, "2"), config=config)
     return x
 
-def downsample(x, n, filters, name=None, config=config.Config()):
+def downsample(x, n, filters, skip_last_act, name=None, config=config.Config()):
     for i in range(n):
         x = config.conv(x, filters=filters if i == n - 1 else x.shape[-1], kernel_size=3, strides=2, use_bias=False, padding="same", name=join(name, str(i), "conv"))
         x = config.norm(x, name=join(name, str(i), "norm"))
-        if i < n - 1:
+        if i < n - 1 or not skip_last_act:
             x = config.act(x)
     return x
 
@@ -23,7 +23,7 @@ def upsample(x, n, filters, name=None, config=config.Config()):
 
 def fuse(x, n, filters, name=None, config=config.Config()):
     if n < 0:
-        return downsample(x, -n, filters, name=join(name, "downsample"), config=config)
+        return downsample(x, -n, filters, skip_last_act=True, name=join(name, "downsample"), config=config)
     elif n == 0:
         return x
     else:
@@ -41,6 +41,7 @@ def module(xs, block, num_units, filters, name=None, config=config.Config()):
                     config=config)
 
     # Fuse
+    new_xs = [None] * len(xs)
     for output_branch_index in range(len(xs)):
         inputs = []
         for input_branch_index in range(len(xs)):
@@ -51,8 +52,8 @@ def module(xs, block, num_units, filters, name=None, config=config.Config()):
                 name=join(name, f"fuse_branch{input_branch_index}to{output_branch_index}"),
                 config=config
             ))
-        xs[output_branch_index] = tf.reduce_sum(tf.stack(inputs, axis=-1), axis=-1)
-    xs = [config.act(x) for x in xs]
+        new_xs[output_branch_index] = tf.reduce_sum(tf.stack(inputs, axis=-1), axis=-1)
+    xs = [config.act(x) for x in new_xs]
 
     return xs
 
@@ -65,13 +66,12 @@ def transition(xs, filters, name=None, config=config.Config()):
             xs[branch_index] = conv_norm_act(xs[branch_index], filters=filters[branch_index], kernel_size=3, stride=1, name=join(name, f"branch{branch_index + 1}"), config=config)
 
     # New branches
-    branches_before = len(xs)
     last_x = orig_xs[-1]
-    for branch_index in range(branches_before, len(filters)):
+    for branch_index in range(len(xs), len(filters)):
         # In the authors' code this establishes a new downscale pyramid from orig_xs[-1] for every new branch, even though reusing
         # the previously downsampled branches seems more reasonable. This doesn't ever come into effect since the network configs
         # only specify single new branches. We go with the reusing approach here.
-        xs.append(downsample(last_x, 1, filters[branch_index], name=join(name, f"branch{branch_index + 1}"), config=config))
+        xs.append(downsample(last_x, 1, filters[branch_index], skip_last_act=False, name=join(name, f"branch{branch_index + 1}"), config=config))
         last_x = xs[-1]
 
     return xs

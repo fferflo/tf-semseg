@@ -10,4 +10,5 @@ from . import esanet
 from . import hrnet
 from . import ocr
 from . import transformer
+from . import mscale
 from . import pretrained
