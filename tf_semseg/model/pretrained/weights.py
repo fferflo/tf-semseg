@@ -2,6 +2,13 @@ import tensorflow as tf
 import numpy as np
 import os, sys
 
+def load_ckpt(file, model, convert_name): # TODO: ignore layers?
+    for v in model.variables:
+        key = convert_name(v.name)
+        new_var = tf.train.load_variable(file, key)
+        v.assign(new_var)
+    return model
+
 def load_pth(file, model, convert_name, ignore=None):
     import torch
 
