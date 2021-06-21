@@ -20,45 +20,51 @@ class BoundaryLabelRelaxed:
         self.inner_metric.reset_states()
 
 class ConfusionMatrix(tf.keras.metrics.Metric):
-    def __init__(self, classes_num, *args, allow_multiple_groundtruths=True, allow_dontcare_prediction=False, **kwargs):
+    def __init__(self, classes_num, *args, allow_multiple_groundtruths=True, dontcare_prediction="forbidden", **kwargs):
         super().__init__(*args, **kwargs)
-        self.classes_num = classes_num
+        self.classes_num = (classes_num + 1) if dontcare_prediction == "error" else classes_num
         self.allow_multiple_groundtruths = allow_multiple_groundtruths
-        self.allow_dontcare_prediction = allow_dontcare_prediction
+        assert dontcare_prediction in ["forbidden", "ignore", "error"]
+        self.dontcare_prediction = dontcare_prediction
         self.total_cm = self.add_weight(
             'total_confusion_matrix',
-            shape=(classes_num, classes_num),
+            shape=(self.classes_num, self.classes_num),
             initializer=tf.zeros_initializer,
             dtype=tf.float64)
 
     def update_state(self, y_true, y_pred):
-        if self.allow_dontcare_prediction:
-            y_pred_valid = tf.reduce_sum(y_pred, axis=-1) > dont_care_threshold
-        else:
-            tf.assert_greater(tf.reduce_sum(y_pred, axis=-1), dont_care_threshold)
+        assert len(y_true.shape) == len(y_pred.shape)
 
-        y_pred = tf.argmax(y_pred, axis=-1)
+        # Preprocess prediction
+        if self.dontcare_prediction == "ignore":
+            y_pred_valid = tf.reduce_sum(y_pred, axis=-1) > dont_care_threshold
+            y_pred = tf.argmax(y_pred, axis=-1)
+        elif self.dontcare_prediction == "error":
+            y_pred_valid = tf.reduce_sum(y_pred, axis=-1) > dont_care_threshold
+            y_pred = tf.where(y_pred_valid, tf.argmax(y_pred, axis=-1), self.classes_num - 1)
+            y_pred_valid = tf.ones_like(y_pred, dtype="bool")
+        else: # self.dontcare_prediction == "forbidden"
+            tf.assert_greater(tf.reduce_sum(y_pred, axis=-1), dont_care_threshold)
+            y_pred = tf.argmax(y_pred, axis=-1)
+            y_pred_valid = tf.ones_like(y_pred, dtype="bool")
+
+        # Preprocess groundtruth
+        y_true_valid = tf.reduce_sum(y_true, axis=-1) > dont_care_threshold
         if self.allow_multiple_groundtruths:
             y_pred_one_hot = tf.one_hot(y_pred, depth=y_true.shape[-1])
             matches = tf.reduce_sum(y_true * y_pred_one_hot, axis=-1) > dont_care_threshold
             y_true = tf.where(matches, y_pred, tf.argmax(y_true - y_pred_one_hot, axis=-1))
         else:
+            tf.debugging.assert_less_equal(tf.reduce_sum(y_true, axis=-1), 1.0 + 1e-6)
             y_true = tf.argmax(y_true, axis=-1)
 
-        if self.allow_dontcare_prediction:
-            y_pred = tf.where(y_pred_valid, y_pred, self.classes_num)
-
+        # Add to confusion matrix
+        y_pred_valid = tf.reshape(y_pred_valid, [-1])
+        y_true_valid = tf.reshape(y_true_valid, [-1])
         y_pred = tf.reshape(y_pred, [-1])
         y_true = tf.reshape(y_true, [-1])
-
-        if self.allow_dontcare_prediction:
-            sample_weight = tf.cast(tf.math.logical_and(tf.math.less(y_true, self.classes_num), tf.math.less(y_pred, self.classes_num)), tf.int32)
-            y_pred = tf.minimum(tf.cast(y_pred, tf.int32), self.classes_num - 1)
-        else:
-            sample_weight = tf.cast(tf.math.less(y_true, self.classes_num), tf.int32)
-        y_true = tf.minimum(tf.cast(y_true, tf.int32), self.classes_num - 1)
-
-        cm = tf.math.confusion_matrix(y_true, y_pred, self.classes_num, weights=sample_weight, dtype=tf.float64)
+        sample_weight = tf.where(tf.math.logical_and(y_true_valid, y_pred_valid), 1, 0)
+        cm = tf.math.confusion_matrix(y_true, y_pred, num_classes=self.classes_num, weights=sample_weight, dtype=self.total_cm.dtype)
         return self.total_cm.assign_add(cm)
 
     def result(self):
