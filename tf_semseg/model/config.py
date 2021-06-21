@@ -33,7 +33,7 @@ class Config:
 
         def avgpool(x, *args, **kwargs):
             if mode == "tensorflow":
-                return Conv(*args, **kwargs)(x)
+                return AveragePool(*args, **kwargs)(x)
             elif mode == "pytorch":
                 return PyTorchAveragePool(*args, **kwargs)(x)
             else:
