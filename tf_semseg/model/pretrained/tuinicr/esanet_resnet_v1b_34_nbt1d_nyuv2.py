@@ -14,9 +14,15 @@ depth_mean = 2841.94941272766
 depth_std = 1417.2594281672277
 
 def preprocess(color, depth):
-    depth_0 = depth == 0
+    if tf.is_tensor(depth):
+        depth_0 = tf.math.logical_or(tf.math.logical_not(tf.math.is_finite(depth)), depth == 0)
+    else:
+        depth_0 = np.logical_or(np.logical_not(np.isfinite(depth)), depth == 0)
     depth = (depth - depth_mean) / depth_std
-    depth[depth_0] = 0
+    if tf.is_tensor(depth):
+        depth = tf.where(depth_0, 0.0, depth)
+    else:
+        depth[depth_0] = 0
 
     color = color / 255.0
     color = (color - color_mean) / color_std
