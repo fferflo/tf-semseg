@@ -36,9 +36,12 @@ class CrossEntropy:
         return -tf.math.log(reduced_dot)
 
 class Dice:
-    def __init__(self, classes = None):
+    def __init__(self, classes=None, class_weights=None):
         self.name = "Dice"
-        self.classes = None
+        self.classes = classes
+        self.class_weights = class_weights
+        if not classes is None and not class_weights is None:
+            assert len(classes) == len(class_weights)
 
     def __call__(self, y_true, y_pred):
         # TODO: dont_care = tf.reduce_sum(y_true, axis=-1) <= dont_care_threshold
@@ -52,8 +55,10 @@ class Dice:
 
         if self.classes != None:
             ratio = tf.gather(self.classes, ratio)
-        ratio = tf.reduce_mean(ratio, axis=-1)
-        return 1.0 - ratio
+        loss = 1.0 - ratio
+        if not self.class_weights is None:
+            loss = loss * self.class_weights
+        return loss
 
 class Focal:
     def __init__(self, alpha = 0.25, gamma = 2.0, loss = CrossEntropy()):
