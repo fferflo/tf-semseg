@@ -35,8 +35,7 @@ def create():
     x = hrnet.hrnet_v2_w48(x, config=config)
     x = ocr.ocr(x, regions=19, filters=512, filters_qkv=256, fix_bias_before_norm=False, config=config)
     x = conv_norm_act(x, filters=512, kernel_size=1, stride=1, use_bias=False, name="final", config=config)
-    x = tf.keras.layers.Dropout(0.05)(x)
-    output, weights = mscale.mscale_decode(x, filters=19, filters_mid=256, shape=tf.shape(input)[1:-1], name="mscale", config=config)
+    output, weights = mscale.mscale_decode(x, filters=19, filters_mid=256, shape=tf.shape(input)[1:-1], dropout=0.05, name="mscale", config=config)
 
     model = tf.keras.Model(inputs=[input], outputs=[output, weights])
 

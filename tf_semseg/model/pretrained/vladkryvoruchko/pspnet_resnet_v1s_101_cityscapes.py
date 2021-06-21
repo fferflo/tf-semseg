@@ -25,8 +25,7 @@ def create():
     x = resnet.resnet_v1_101(x, dilated=True, stem="s", config=config)
     x = pspnet.psp(x, bin_sizes=[6, 3, 2, 1], resize_method="bilinear", config=config)
     x = conv_norm_act(x, filters=512, kernel_size=3, stride=1, name="final", config=config)
-    x = tf.keras.layers.Dropout(0.1)(x) # TODO: move dropout into config
-    x = decode.decode(x, 19, shape=tf.shape(input)[1:-1], config=config)
+    x = decode.decode(x, 19, shape=tf.shape(input)[1:-1], dropout=0.1, config=config)
     x = tf.keras.layers.Softmax()(x)
 
     model = tf.keras.Model(inputs=[input], outputs=[x])

@@ -2,7 +2,10 @@ import tensorflow as tf
 from .util import *
 from . import config, decode
 
-def mscale_decode(x, filters, filters_mid, shape=None, name="mscale", config=config.Config()):
+def mscale_decode(x, filters, filters_mid, shape=None, dropout=None, name="mscale", config=config.Config()):
+    if not dropout is None:
+        x = tf.keras.layers.Dropout(dropout)(x)
+
     output = x
     output = decode.decode(output, filters, name=join(name, "output", "decode"), config=config)
     if not shape is None:
@@ -11,7 +14,6 @@ def mscale_decode(x, filters, filters_mid, shape=None, name="mscale", config=con
     weights = x
     weights = conv_norm_act(weights, filters=filters_mid, kernel_size=3, stride=1, name=join(name, "attention", "1"), config=config)
     weights = conv_norm_act(weights, filters=filters_mid, kernel_size=3, stride=1, name=join(name, "attention", "2"), config=config)
-    # TODO: dropout here, or move dropout into decode?
     weights = decode.decode(weights, 1, name=join(name, "attention", "decode"), use_bias=False)
     weights = tf.keras.layers.Activation("sigmoid")(weights)
     if not shape is None:
