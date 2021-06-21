@@ -18,7 +18,7 @@ setup(
         "imageio",
         "numpy",
         "h5py",
-        "google_drive_downloader",
+        "googledrivedownloader",
         "torch",
         "distinctipy",
     ],
