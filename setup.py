@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="tf-semseg",
-    version="0.1.1",
+    version="0.2.0",
     python_requires=">=3",
     description="Semantic segmentation utilities for tensorflow",
     author="Florian Fervers",
