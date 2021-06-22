@@ -1,5 +1,6 @@
 import tensorflow as tf
 import numpy as np
+import math
 
 def default_norm(x, *args, epsilon=1e-5, momentum=0.997, **kwargs):
     return tf.keras.layers.BatchNormalization(*args, momentum=momentum, epsilon=epsilon, **kwargs)(x)
@@ -10,7 +11,7 @@ def default_act(x, **kwargs):
 default_mode = "tensorflow"
 
 class Config:
-    def __init__(self, norm=default_norm, act=default_act, mode=default_mode, resize_align_corners=False):
+    def __init__(self, norm=default_norm, act=default_act, mode=default_mode, resize_align_corners=False, upsample_mode="resize"):
         assert mode in ["tensorflow", "pytorch"]
 
         def conv(x, *args, **kwargs):
@@ -21,6 +22,11 @@ class Config:
             else:
                 assert False
         self.conv = conv
+
+        if resize_align_corners:
+            self.resize = lambda x, shape, method: tf.compat.v1.image.resize(x, shape, method=method, align_corners=True)
+        else:
+            self.resize = lambda x, shape, method: tf.image.resize(x, shape, method=method)
 
         def maxpool(x, *args, **kwargs):
             if mode == "tensorflow":
@@ -40,12 +46,28 @@ class Config:
                 assert False
         self.avgpool = avgpool
 
-        self.upsample = lambda x, *args, **kwargs: UpSample(*args, **kwargs)(x)
-
-        if resize_align_corners:
-            self.resize = lambda x, shape, method: tf.compat.v1.image.resize(x, shape, method=method, align_corners=True)
+        if upsample_mode == "resize":
+            def upsample(x, factor, method="nearest"):
+                return self.resize(x, factor * tf.shape(x)[1:-1], method=method)
+        elif upsample_mode == "upsample-pool":
+            def upsample(x, factor, method="nearest"):
+                if method == "nearest":
+                    return UpSample(factor)(x)
+                elif method == "bilinear":
+                    while factor > 1: # Simple prime factorization
+                        for k in range(2, factor + 1):
+                            if factor % k == 0:
+                                break
+                        x = UpSample(k)(x)
+                        x = tf.pad(x, [[0, 0]] + [[1, 1] for _ in range(len(x.shape) - 2)] + [[0, 0]], mode="SYMMETRIC")
+                        x = tf.nn.avg_pool(x, ksize=k + 1, strides=1, padding="VALID")
+                        factor = factor // k
+                    return x
+                else:
+                    raise ValueError("Invalid method")
         else:
-            self.resize = lambda x, shape, method: tf.image.resize(x, shape, method=method)
+            raise ValueError("Invalid upsample mode")
+        self.upsample = upsample
 
         self.norm = norm
         self.act = act

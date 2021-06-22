@@ -18,7 +18,7 @@ def downsample(x, n, filters, skip_last_act, name=None, config=config.Config()):
 def upsample(x, n, filters, name=None, config=config.Config()):
     x = config.conv(x, filters=filters, kernel_size=1, strides=1, use_bias=False, padding="same", name=join(name, "conv"))
     x = config.norm(x, name=join(name, "norm"))
-    x = config.resize(x, (2 ** n) * tf.shape(x)[1:-1], method="bilinear")
+    x = config.upsample(x, (2 ** n), method="bilinear")
     return x
 
 def fuse(x, n, filters, name=None, config=config.Config()):
@@ -94,7 +94,7 @@ def hrnet(x, num_units, filters, blocks, num_modules, name=None, config=config.C
             xs = transition(xs, filters[block_index + 1], name=join(name, f"block{block_index + 1}", "transition"), config=config)
 
     for branch_index in range(1, len(xs)):
-        xs[branch_index] = config.resize(xs[branch_index], tf.shape(xs[0])[1:-1], method="bilinear")
+        xs[branch_index] = config.upsample(xs[branch_index], 2 ** branch_index, method="bilinear")
 
     x = tf.concat(xs, axis=-1)
     return x
