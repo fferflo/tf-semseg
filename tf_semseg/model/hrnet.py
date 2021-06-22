@@ -76,8 +76,9 @@ def transition(xs, filters, name=None, config=config.Config()):
 
     return xs
 
-def hrnet(x, num_units, filters, blocks, num_modules, name=None, config=config.Config()):
-    x = stem(x, name=join(name, "stem"), config=config)
+def hrnet(x, num_units, filters, blocks, num_modules, stem=True, name=None, config=config.Config()):
+    if stem:
+        x = globals()["stem"](x, name=join(name, "stem"), config=config)
 
     xs = [x]
 
@@ -99,12 +100,13 @@ def hrnet(x, num_units, filters, blocks, num_modules, name=None, config=config.C
     x = tf.concat(xs, axis=-1)
     return x
 
-def hrnet_v2_w48(x, name=None, config=config.Config()):
+def hrnet_v2_w48(x, name=None, stem=True, config=config.Config()):
     return hrnet(x,
         num_units=[[4], [4, 4], [4, 4, 4], [4, 4, 4, 4]],
         filters=[[64], [48, 96], [48, 96, 192], [48, 96, 192, 384]],
         blocks=[resnet.bottleneck_block_v1, resnet.basic_block_v1, resnet.basic_block_v1, resnet.basic_block_v1],
         num_modules=[1, 1, 4, 3],
+        stem=stem,
         name=name,
         config=config
     )
