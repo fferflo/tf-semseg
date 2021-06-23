@@ -1,6 +1,6 @@
 import tensorflow as tf
 from .util import *
-from . import resnet, erfnet, pspnet, config, senet
+from . import resnet, erfnet, pspnet, config, senet, shortcut
 
 def stem(rgb, depth, se_reduction=16, name=None, config=config.Config()):
     def resnet_stem_b_no_pool(x, name):
@@ -26,15 +26,6 @@ def upsample(x, factor, name=None, config=config.Config()):
     x = config.resize(x, factor * tf.shape(x)[1:-1], method="nearest")
     x = config.conv(x, filters, kernel_size=3, groups=filters, name=join(name, "conv"), use_bias=True, padding="same")
     return x
-
-def shortcut(enc_x, dec_x, name, config=config.Config()):
-    dec_channels = dec_x.get_shape()[-1]
-    enc_channels = enc_x.get_shape()[-1]
-
-    if dec_channels != enc_channels:
-        enc_x = conv_norm_act(enc_x, dec_channels, kernel_size=1, name=name, config=config)
-
-    return enc_x + dec_x
 
 def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, strides, name=None, psp_bin_sizes=[1, 5], block=erfnet.non_bottleneck_block_1d, se_reduction=16, decoder_filters=[512, 256, 128], num_decoder_units=[3, 3, 3], config=config.Config()):
     rgb, depth = globals()["stem"](rgb, depth, se_reduction=se_reduction, name=join(name, "stem_b"), config=config)
@@ -78,7 +69,7 @@ def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, str
         for unit_index in range(num_decoder_units[block_index]):
             x = block(x, name=join(name, "decode", f"block{block_index + 1}", f"unit{unit_index + 1}"), config=config)
         x = upsample(x, factor=2, name=join(name, "decode", f"block{block_index + 1}", "upsample"), config=config)
-        x = shortcut(dec_x=x, enc_x=encoder_blocks[-(block_index + 2)], name=join(name, "decode", f"block{block_index + 1}", "shortcut"), config=config)
+        x = shortcut.add(x, encoder_blocks[-(block_index + 2)], name=join(name, "decode", f"block{block_index + 1}", "shortcut"), config=config)
 
     x = config.conv(x, classes, kernel_size=3, name=join(name, "decode", "final", "conv"), use_bias=True, padding="same") # TODO: this should be initialized differently for training: https://github.com/TUI-NICR/ESANet/blob/56b7aff77e3fc05ce4ffe55142dc805b07956f22/src/models/model.py#L385
     x = upsample(x, factor=2, name=join(name, "decode", "final", "upsample1"), config=config)
