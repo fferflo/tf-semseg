@@ -1,36 +1,38 @@
 import tensorflow as tf
 from .util import *
-from . import config
+from . import config, shortcut
 
-default_downsample = lambda x, pool_size, name=None, config=config.Config(): config.maxpool(x, pool_size=pool_size, name=name)
-default_upsample = lambda x, pool_size, name=None, config=config.Config(): config.upsample(x, size=pool_size, name=name)
-default_block = partial(repeat, n=2, block=conv_norm_act)
-# TODO: try replacing config.upsample with tf.repeat
-def unet(x, filters, levels, name="unet", encoding_block=default_block, decoding_block=default_block, downsample=default_downsample, upsample=default_upsample, config=config.Config()):
-    encoding_levels = []
+default_upsample = lambda x, pool_size, name=None, config=config.Config(): config.upsample(x, factor=pool_size, name=name, method="nearest")
+
+def unet(x, filters, num_encode_units, num_decode_units, encode, decode, upsample=default_upsample, bottleneck=None, shortcut=shortcut.concat, name="unet", config=config.Config()):
+    levels = len(num_encode_units)
+    if not isinstance(encode, list):
+        encode = [encode] * levels
+    if not isinstance(decode, list):
+        decode = [decode] * levels
 
     # Encoder
+    encoding_levels = []
     for level in range(levels):
-        # Encode
-        x = encoding_block(x,
-                filters=filters * (2 ** level),
-                name=join(name, "encode" + str(level + 1)),
-                config=config)
-        if level < levels - 1:
-            encoding_levels.append(x)
-            # Downsample
-            x = downsample(x, pool_size=2, name=join(name, "downsample" + str(str(level + 1))), config=config)
+        for unit_index in range(num_encode_units[level]):
+            x = encode[level](x,
+                    filters=filters * (2 ** level),
+                    stride=2 if (unit_index == 0 and level > 0) else 1,
+                    name=join(name, f"encode{level + 1}", f"unit{unit_index + 1}"),
+                    config=config)
+        encoding_levels.append(x)
+
+    if not bottleneck is None:
+        x = bottleneck(x, name=join(name, "bottleneck"))
 
     # Decoder
     for level in reversed(range(1, levels)):
-        # Upsample
-        x = upsample(x, pool_size=2, name=join(name, "upsample" + str(level + 1)), config=config)
-        # Skip connection
-        x = tf.keras.layers.Concatenate()([x, encoding_levels[level - 1]])
-        # Decode
-        x = decoding_block(x,
-                filters=filters * (2 ** (level - 1)),
-                name=join(name, "decode" + str(level + 1)),
-                config=config)
+        x = upsample(x, pool_size=2, name=join(name, f"upsample{level + 1}"), config=config)
+        x = shortcut(x, encoding_levels[level - 1], name=join(name, f"shortcut{level + 1}"))
+        for unit_index in range(num_decode_units[level]):
+            x = decode[level](x,
+                    filters=filters * (2 ** (level - 1)),
+                    name=join(name, f"decode{level + 1}", f"unit{unit_index + 1}"),
+                    config=config)
 
     return x
