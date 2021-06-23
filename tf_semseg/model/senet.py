@@ -27,7 +27,7 @@ def squeeze_excite_spatial(x, name="squeeze_excite_spatial", config=config.Confi
 
 def squeeze_excite_concurrent(x, reduction, name="squeeze_excite_concurrent", config=config.Config()):
     x_channel = squeeze_excite_channel(x, reduction=reduction, name=join(name, "channel"), config=config)
-    x_spatial = squeeze_excite_spatial(x, reduction=reduction, name=join(name, "spatial"), config=config)
+    x_spatial = squeeze_excite_spatial(x, name=join(name, "spatial"), config=config)
 
     x = tf.math.maximum(x_channel, x_spatial)
     return x
