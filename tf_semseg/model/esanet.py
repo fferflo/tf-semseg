@@ -39,7 +39,7 @@ def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, str
                 return block(x,
                         filters=filters[block_index],
                         stride=strides[block_index] if unit_index == 0 else 1,
-                        dilation_rate=dilation_rates[block_index],
+                        dilation_rate=(dilation_rates[block_index - 1] if block_index > 0 else 1) if unit_index == 0 else dilation_rates[block_index],
                         name=join(name, f"block{block_index + 1}", f"unit{unit_index + 1}"),
                         config=config)
             rgb = unit(rgb, name=join(name, "encode_rgb"))

@@ -25,10 +25,10 @@ def convert_name(name):
 
 config = Config()
 
-def create_x(dilated, resnet_v1_x, url):
+def create_x(dilate, resnet_v1_x, url):
     input = tf.keras.layers.Input((None, None, 3))
     x = input
-    x = resnet_v1_x(x, dilated=dilated, stem="b", config=config)
+    x = resnet_v1_x(x, dilate=dilate, stem="b", config=config)
     model = tf.keras.Model(inputs=[input], outputs=[x])
 
     weights_compressed = tf.keras.utils.get_file(url.split("/")[-1], url)

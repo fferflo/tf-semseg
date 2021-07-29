@@ -22,7 +22,7 @@ def create():
     input = tf.keras.layers.Input((None, None, 3))
 
     x = input
-    x = resnet.resnet_v1_101(x, dilated=True, stem="s", config=config)
+    x = resnet.resnet_v1_101(x, dilate=[False, False, True, True], stem="s", config=config)
     x = pspnet.psp(x, bin_sizes=[6, 3, 2, 1], resize_method="bilinear", config=config)
     x = conv_norm_act(x, filters=512, kernel_size=3, stride=1, name="final", config=config)
     x = decode.decode(x, 19, shape=tf.shape(input)[1:-1], dropout=0.1, config=config)

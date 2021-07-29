@@ -79,44 +79,59 @@ def resnet(x, block, num_residual_units, filters, dilation_rates, strides, name=
             x = block(x,
                     filters=filters[block_index],
                     stride=strides[block_index] if unit_index == 0 else 1,
-                    dilation_rate=dilation_rates[block_index],
+                    dilation_rate=(dilation_rates[block_index - 1] if block_index > 0 else 1) if unit_index == 0 else dilation_rates[block_index],
                     name=join(name, f"block{block_index + 1}", f"unit{unit_index + 1}"),
                     config=config,
                     **kwargs)
 
     return x
 
-def resnet_v1_50(x, block=bottleneck_block_v1, name="resnet_v1_50", stem="b", dilated=False, **kwargs):
+def strides_and_dilation_rates(strides, dilate):
+    if isinstance(dilate, bool):
+        dilate = [dilate, dilate, dilate, dilate]
+    dilation_rates = [1, 1, 1, 1]
+    strides = [s for s in strides]
+    for i, d in enumerate(dilate):
+        if d:
+            for j in range(i, len(dilate)):
+                dilation_rates[j] *= strides[i]
+            strides[i] = 1
+    return strides, dilation_rates
+
+def resnet_v1_50(x, block=bottleneck_block_v1, name="resnet_v1_50", stem="b", strides=[1, 2, 2, 2], dilate=False, **kwargs):
+    strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     x = resnet(x,
         block=block,
         num_residual_units=[3, 4, 6, 3],
         filters=[64, 128, 256, 512],
-        dilation_rates=[1, 1, 2, 4] if dilated else [1, 1, 1, 1],
-        strides=[1, 2, 1, 1] if dilated else [1, 2, 2, 2],
+        dilation_rates=dilation_rates,
+        strides=strides,
         stem=stem,
         name=name,
         **kwargs)
     return x
 
-def resnet_v1_101(x, block=bottleneck_block_v1, name="resnet_v1_101", stem="b", dilated=False, **kwargs):
+def resnet_v1_101(x, block=bottleneck_block_v1, name="resnet_v1_101", stem="b", strides=[1, 2, 2, 2], dilate=False, **kwargs):
+    strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     x = resnet(x,
         block=block,
         num_residual_units=[3, 4, 23, 3],
         filters=[64, 128, 256, 512],
-        dilation_rates=[1, 1, 2, 4] if dilated else [1, 1, 1, 1],
-        strides=[1, 2, 1, 1] if dilated else [1, 2, 2, 2],
+        dilation_rates=dilation_rates,
+        strides=strides,
         stem=stem,
         name=name,
         **kwargs)
     return x
 
-def resnet_v1_152(x, block=bottleneck_block_v1, name="resnet_v1_152", stem="b", dilated=False, **kwargs):
+def resnet_v1_152(x, block=bottleneck_block_v1, name="resnet_v1_152", stem="b", strides=[1, 2, 2, 2], dilate=False, **kwargs):
+    strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     x = resnet(x,
         block=block,
         num_residual_units=[3, 8, 36, 3],
         filters=[64, 128, 256, 512],
-        dilation_rates=[1, 1, 2, 4] if dilated else [1, 1, 1, 1],
-        strides=[1, 2, 1, 1] if dilated else [1, 2, 2, 2],
+        dilation_rates=dilation_rates,
+        strides=strides,
         stem=stem,
         name=name,
         **kwargs)
