@@ -83,6 +83,7 @@ def resnet(x, block, num_residual_units, filters, dilation_rates, strides, name=
                     name=join(name, f"block{block_index + 1}", f"unit{unit_index + 1}"),
                     config=config,
                     **kwargs)
+        x = tf.keras.layers.Lambda(lambda x: x, name=join(name, f"block{block_index + 1}"))(x)
 
     return x
 
