@@ -26,3 +26,11 @@ def repeat(x, n, block, name=None, **kwargs):
     for i in range(n):
         x = block(x, name=join(name, str(i + 1)), **kwargs)
     return x
+
+def get_predecessor(input, output, pred):
+    result = list(filter(lambda x: pred(x.name), tf.keras.Model(inputs=[input], outputs=[output]).layers))
+    if len(result) > 1:
+        raise ValueError("Tensor has more than one predecessor matching the given predicate")
+    if len(result) == 0:
+        raise ValueError("Tensor has no predecessor matching the given predicate")
+    return result[0].output
