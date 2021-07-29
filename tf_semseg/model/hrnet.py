@@ -43,15 +43,20 @@ def module(xs, block, num_units, filters, name=None, config=config.Config()):
     # Fuse
     new_xs = [None] * len(xs)
     for output_branch_index in range(len(xs)):
+        dest_shape = tf.shape(xs[output_branch_index])
+        slice_begin = dest_shape * 0
         inputs = []
         for input_branch_index in range(len(xs)):
-            inputs.append(fuse(
+            x = fuse(
                 xs[input_branch_index],
                 n=input_branch_index - output_branch_index,
                 filters=filters[output_branch_index],
                 name=join(name, f"fuse_branch{input_branch_index}to{output_branch_index}"),
                 config=config
-            ))
+            )
+            slice_end = tf.concat([dest_shape[:-1], [x.shape[-1]]], axis=0)
+            x = tf.slice(x, slice_begin, slice_end)
+            inputs.append(x)
         new_xs[output_branch_index] = tf.reduce_sum(tf.stack(inputs, axis=-1), axis=-1)
     xs = [config.act(x) for x in new_xs]
 
@@ -94,8 +99,14 @@ def hrnet(x, num_units, filters, blocks, num_modules, stem=True, name=None, conf
         if block_index < len(num_units) - 1:
             xs = transition(xs, filters[block_index + 1], name=join(name, f"block{block_index + 1}", "transition"), config=config)
 
+    dest_shape = tf.shape(xs[0])
+    slice_begin = dest_shape * 0
     for branch_index in range(1, len(xs)):
-        xs[branch_index] = config.upsample(xs[branch_index], 2 ** branch_index, method="bilinear")
+        x = xs[branch_index]
+        x = config.upsample(x, 2 ** branch_index, method="bilinear")
+        slice_end = tf.concat([dest_shape[:-1], [x.shape[-1]]], axis=0)
+        x = tf.slice(x, slice_begin, slice_end)
+        xs[branch_index] = x
 
     x = tf.concat(xs, axis=-1)
     return x
