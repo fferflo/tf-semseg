@@ -2,7 +2,7 @@ import tensorflow as tf
 from .util import *
 from . import config, shortcut
 
-default_upsample = lambda x, pool_size, name=None, config=config.Config(): config.upsample(x, factor=pool_size, name=name, method="nearest")
+default_upsample = lambda x, factor, name=None, config=config.Config(): upsample(x, factor=factor, name=name, method="nearest", config=config)
 
 def unet(x, filters, num_encode_units, num_decode_units, encode, decode, upsample=default_upsample, bottleneck=None, shortcut=shortcut.concat, name="unet", config=config.Config()):
     levels = len(num_encode_units)
@@ -27,7 +27,7 @@ def unet(x, filters, num_encode_units, num_decode_units, encode, decode, upsampl
 
     # Decoder
     for level in reversed(range(1, levels)):
-        x = upsample(x, pool_size=2, name=join(name, f"upsample{level + 1}"), config=config)
+        x = upsample(x, factor=2, name=join(name, f"upsample{level + 1}"), config=config)
         x = shortcut(x, encoding_levels[level - 1], name=join(name, f"shortcut{level + 1}"))
         for unit_index in range(num_decode_units[level]):
             x = decode[level](x,

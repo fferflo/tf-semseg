@@ -7,11 +7,11 @@ def interpolate_block(x, level, resize_method, filters, name=None, config=config
     orig_x = x
 
     # Variant 1: Does not have gradients
-    # x = config.resize(x, tf.stack([level, level]), method="area")
+    # x = resize(x, tf.stack([level, level]), method="area", config=config)
 
     # Variant 2: Not working, since pooling currently does not allow dynamic kernel sizes and strides
-    # pool_size = tf.cast(tf.math.ceil(tf.shape(x)[1:-1] / level), "int32")
-    # x = AveragePool(pool_size=pool_size, strides=pool_size, padding="same")(x)
+    # kernel_size = tf.cast(tf.math.ceil(tf.shape(x)[1:-1] / level), "int32")
+    # x = pool(x, kernel_size=kernel_size, stride=kernel_size)
 
     # Variant 3: Might be slower than other variants
     def pool(x):
@@ -24,10 +24,8 @@ def interpolate_block(x, level, resize_method, filters, name=None, config=config
         return x
     x = tf.keras.layers.Lambda(pool, output_shape=tuple([None] + [level] * (len(x.shape) - 2) + [x.shape[-1]]))(x)
 
-    x = config.conv(x, filters, kernel_size=1, strides=1, name=join(name, "conv"), use_bias=False)
-    x = config.norm(x, name=join(name, "norm"))
-    x = config.act(x)
-    x = config.resize(x, tf.shape(orig_x)[1:-1], method=resize_method)
+    x = conv_norm_act(x, filters=filters, kernel_size=1, stride=1, use_bias=False, name=name, config=config)
+    x = resize(x, tf.shape(orig_x)[1:-1], method=resize_method, config=config)
 
     return x
 

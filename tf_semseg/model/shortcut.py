@@ -7,18 +7,18 @@ def add(dest, src, stride=1, activation=True, name=None, config=config.Config())
     dest_channels = dest.get_shape()[-1]
 
     if src_channels != dest_channels or stride > 1:
-        src = config.conv(src, dest_channels, kernel_size=1, strides=stride, dilation_rate=1, use_bias=False, padding="same", name=join(name, "conv"))
-        src = config.norm(src, name=join(name, "norm"))
+        src = conv(src, dest_channels, kernel_size=1, stride=stride, name=join(name, "conv"), config=config)
+        src = norm(src, name=join(name, "norm"), config=config)
         if activation:
-            src = config.act(src)
+            src = act(src, config=config)
 
     return src + dest
 
 def concat(dest, src, stride=1, activation=True, name=None, config=config.Config()):
     if stride > 1:
-        src = config.conv(src, kernel_size=1, strides=stride, dilation_rate=1, use_bias=False, padding="same", name=join(name, "conv"))
-        src = config.norm(src, name=join(name, "norm"))
+        src = conv(src, kernel_size=1, stride=stride, name=join(name, "conv"), config=config)
+        src = norm(src, name=join(name, "norm"), config=config)
         if activation:
-            src = config.act(src)
+            src = act(src, config=config)
 
     return tf.concat([dest, src], axis=-1)

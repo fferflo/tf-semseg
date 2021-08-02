@@ -8,31 +8,20 @@ from . import config, shortcut
 
 def stem(x, type, name, config=config.Config()): # For variants, see: https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/resnet.py#L482
     if type == "b":
-        x = config.conv(x, 64, kernel_size=7, strides=2, dilation_rate=1, use_bias=False, padding="same", name=join(name, "conv"))
-        x = config.norm(x, name=join(name, "norm"))
-        x = config.act(x)
-        pool = config.maxpool
+        x = conv_norm_act(x, filters=64, kernel_size=7, stride=2, name=name, config=config)
+        pool_mode = "max"
     else:
         if type == "s":
             filters = [64, 64, 128]
-            pool = config.maxpool
+            pool_mode = "max"
         else:
-            print("Unknown stem " + type)
-            sys.exit(-1)
+            raise ValueError("Unknown stem " + type)
 
-        x = config.conv(x, filters[0], kernel_size=3, strides=2, dilation_rate=1, use_bias=False, padding="same", name=join(name, "conv1"))
-        x = config.norm(x, name=join(name, "norm1"))
-        x = config.act(x)
+        x = conv_norm_act(x, filters=filters[0], kernel_size=3, stride=2, name=join(name, "1"))
+        x = conv_norm_act(x, filters=filters[1], kernel_size=3, stride=1, name=join(name, "2"))
+        x = conv_norm_act(x, filters=filters[2], kernel_size=3, stride=1, name=join(name, "3"))
 
-        x = config.conv(x, filters[1], kernel_size=3, strides=1, dilation_rate=1, use_bias=False, padding="same", name=join(name, "conv2"))
-        x = config.norm(x, name=join(name, "norm2"))
-        x = config.act(x)
-
-        x = config.conv(x, filters[2], kernel_size=3, strides=1, dilation_rate=1, use_bias=False, padding="same", name=join(name, "conv3"))
-        x = config.norm(x, name=join(name, "norm3"))
-        x = config.act(x)
-
-    x = pool(x, pool_size=3, strides=2, padding="same")
+    x = pool(x, kernel_size=3, stride=2, mode=pool_mode, config=config)
 
     return x
 
@@ -44,29 +33,27 @@ def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basi
 
     x = block(x, filters=filters, stride=stride, dilation_rate=dilation_rate, name=join(name, "1"), config=config, **kwargs)
 
-    x = config.conv(x, filters, kernel_size=3, strides=1, dilation_rate=1, use_bias=False, padding="same", name=join(name, "2", "conv"))
-    x = config.norm(x, name=join(name, "2", "norm"))
+    x = conv(x, filters, kernel_size=3, stride=1, name=join(name, "2", "conv"), config=config)
+    x = norm(x, name=join(name, "2", "norm"), config=config)
 
     x = shortcut.add(x, orig_x, stride=stride, activation=False, name=join(name, "shortcut"), config=config)
     # TODO: dropout?
-    x = config.act(x)
+    x = act(x, config=config)
     return x
 
 def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bottleneck-v1", block=conv_norm_act, bottleneck_factor=4, config=config.Config(), **kwargs):
     orig_x = x
 
-    x = config.conv(x, filters, kernel_size=1, strides=1, dilation_rate=1, use_bias=False, padding="same", name=join(name, "reduce", "conv"))
-    x = config.norm(x, name=join(name, "reduce", "norm"))
-    x = config.act(x)
+    x = conv_norm_act(x, filters, kernel_size=1, stride=1, name=join(name, "reduce"), config=config)
 
     x = block(x, stride=stride, dilation_rate=dilation_rate, name=join(name, "center"), config=config, **kwargs)
 
-    x = config.conv(x, filters * bottleneck_factor, kernel_size=1, strides=1, dilation_rate=1, use_bias=False, padding="same", name=join(name, "expand", "conv"))
-    x = config.norm(x, name=join(name, "expand", "norm"))
+    x = conv(x, filters * bottleneck_factor, kernel_size=1, stride=1, name=join(name, "expand", "conv"), config=config)
+    x = norm(x, name=join(name, "expand", "norm"), config=config)
 
     x = shortcut.add(x, orig_x, stride=stride, activation=False, name=join(name, "shortcut"), config=config)
     # TODO: dropout?
-    x = config.act(x)
+    x = act(x, config=config)
     return x
 
 def resnet(x, block, num_residual_units, filters, dilation_rates, strides, name=None, stem="b", config=config.Config(), **kwargs):

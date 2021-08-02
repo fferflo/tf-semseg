@@ -48,19 +48,19 @@ def create():
         for layer in model.layers:
             if len(layer.get_weights()) > 0:
                 # Resnet: Stem
-                match = re.match(re.escape("resnet_v1_101/stem_s/") + "(.*)", layer.name)
+                match = re.match("resnet_v1_101/stem_s/(.*)/(.*)", layer.name)
                 if match:
-                    index = int(match.group(1)[4:])
+                    index = int(match.group(1))
                     name = "conv1_" + str(index) + "_3x3"
                     if index == 1:
                         name = name + "_s2"
 
-                    if match.group(1).startswith("norm"):
+                    if match.group(2).startswith("norm"):
                         name = name + "_bn"
                         set_bn_weights(layer, weights[name])
                         weights_left.remove(name)
                     else:
-                        assert match.group(1).startswith("conv")
+                        assert match.group(2).startswith("conv")
                         assert "bias" not in weights[name]
                         layer.set_weights([weights[name]["kernel:0"]])
                         weights_left.remove(name)
@@ -130,6 +130,6 @@ def create():
                 weights_left.remove(name)
         if len(weights_left) > 0:
             print("Failed to load weights for layers " + str(weights_left))
-            sys.exit(-1)
+            sys.exit(-1) # TODO: replace all of these with exceptions
 
     return model

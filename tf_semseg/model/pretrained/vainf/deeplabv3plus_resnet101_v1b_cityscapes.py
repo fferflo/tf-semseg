@@ -66,7 +66,7 @@ def create():
     x = aspp.aspp(x, filters=256, atrous_rates=[6, 12, 18], config=config)
     x = conv_norm_act(x, filters=256, kernel_size=1, stride=1, name=join("aspp", "final"), config=config)
     x = tf.keras.layers.Dropout(0.1)(x)
-    x = config.resize(x, tf.shape(x_skip)[1:-1], method="bilinear")
+    x = resize(x, tf.shape(x_skip)[1:-1], method="bilinear", config=config)
     x = tf.concat([x_skip, x], axis=-1)
 
     x = conv_norm_act(x, filters=256, kernel_size=3, stride=1, name="final", config=config)

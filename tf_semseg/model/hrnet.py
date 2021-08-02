@@ -1,33 +1,32 @@
 import tensorflow as tf
-from .util import *
-from . import config, resnet
+from . import config, resnet, util
 
 def stem(x, name=None, config=config.Config()):
-    x = conv_norm_act(x, filters=64, kernel_size=3, stride=2, name=join(name, "1"), config=config)
-    x = conv_norm_act(x, filters=64, kernel_size=3, stride=2, name=join(name, "2"), config=config)
+    x = util.conv_norm_act(x, filters=64, kernel_size=3, stride=2, name=util.join(name, "1"), config=config)
+    x = util.conv_norm_act(x, filters=64, kernel_size=3, stride=2, name=util.join(name, "2"), config=config)
     return x
 
 def downsample(x, n, filters, skip_last_act, name=None, config=config.Config()):
     for i in range(n):
-        x = config.conv(x, filters=filters if i == n - 1 else x.shape[-1], kernel_size=3, strides=2, use_bias=False, padding="same", name=join(name, str(i), "conv"))
-        x = config.norm(x, name=join(name, str(i), "norm"))
+        x = util.conv(x, filters=filters if i == n - 1 else x.shape[-1], kernel_size=3, stride=2, name=util.join(name, str(i), "conv"), config=config)
+        x = util.norm(x, name=util.join(name, str(i), "norm"), config=config)
         if i < n - 1 or not skip_last_act:
-            x = config.act(x)
+            x = util.act(x, config=config)
     return x
 
 def upsample(x, n, filters, name=None, config=config.Config()):
-    x = config.conv(x, filters=filters, kernel_size=1, strides=1, use_bias=False, padding="same", name=join(name, "conv"))
-    x = config.norm(x, name=join(name, "norm"))
-    x = config.upsample(x, (2 ** n), method="bilinear")
+    x = util.conv(x, filters=filters, kernel_size=1, stride=1, name=util.join(name, "conv"), config=config)
+    x = util.norm(x, name=util.join(name, "norm"), config=config)
+    x = util.upsample(x, (2 ** n), method="bilinear", config=config)
     return x
 
 def fuse(x, n, filters, name=None, config=config.Config()):
     if n < 0:
-        return downsample(x, -n, filters, skip_last_act=True, name=join(name, "downsample"), config=config)
+        return downsample(x, -n, filters, skip_last_act=True, name=util.join(name, "downsample"), config=config)
     elif n == 0:
         return x
     else:
-        return upsample(x, n, filters, name=join(name, "upsample"), config=config)
+        return upsample(x, n, filters, name=util.join(name, "upsample"), config=config)
 
 def module(xs, block, num_units, filters, name=None, config=config.Config()):
     # Apply blocks
@@ -37,7 +36,7 @@ def module(xs, block, num_units, filters, name=None, config=config.Config()):
                     filters=filters[branch_index],
                     stride=1,
                     dilation_rate=1,
-                    name=join(name, f"branch{branch_index + 1}", f"unit{unit_index + 1}"),
+                    name=util.join(name, f"branch{branch_index + 1}", f"unit{unit_index + 1}"),
                     config=config)
 
     # Fuse
@@ -51,14 +50,14 @@ def module(xs, block, num_units, filters, name=None, config=config.Config()):
                 xs[input_branch_index],
                 n=input_branch_index - output_branch_index,
                 filters=filters[output_branch_index],
-                name=join(name, f"fuse_branch{input_branch_index}to{output_branch_index}"),
+                name=util.join(name, f"fuse_branch{input_branch_index}to{output_branch_index}"),
                 config=config
             )
             slice_end = tf.concat([dest_shape[:-1], [x.shape[-1]]], axis=0)
             x = tf.slice(x, slice_begin, slice_end)
             inputs.append(x)
         new_xs[output_branch_index] = tf.reduce_sum(tf.stack(inputs, axis=-1), axis=-1)
-    xs = [config.act(x) for x in new_xs]
+    xs = [util.act(x, config=config) for x in new_xs]
 
     return xs
 
@@ -68,7 +67,7 @@ def transition(xs, filters, name=None, config=config.Config()):
     # Old branches
     for branch_index in range(len(xs)):
         if xs[branch_index].shape[-1] != filters[branch_index]:
-            xs[branch_index] = conv_norm_act(xs[branch_index], filters=filters[branch_index], kernel_size=3, stride=1, name=join(name, f"branch{branch_index + 1}"), config=config)
+            xs[branch_index] = util.conv_norm_act(xs[branch_index], filters=filters[branch_index], kernel_size=3, stride=1, name=util.join(name, f"branch{branch_index + 1}"), config=config)
 
     # New branches
     last_x = orig_xs[-1]
@@ -76,14 +75,14 @@ def transition(xs, filters, name=None, config=config.Config()):
         # In the authors' code this establishes a new downscale pyramid from orig_xs[-1] for every new branch, even though reusing
         # the previously downsampled branches seems more reasonable. This doesn't ever come into effect since the network configs
         # only specify single new branches. We go with the reusing approach here.
-        xs.append(downsample(last_x, 1, filters[branch_index], skip_last_act=False, name=join(name, f"branch{branch_index + 1}"), config=config))
+        xs.append(downsample(last_x, 1, filters[branch_index], skip_last_act=False, name=util.join(name, f"branch{branch_index + 1}"), config=config))
         last_x = xs[-1]
 
     return xs
 
 def hrnet(x, num_units, filters, blocks, num_modules, stem=True, name=None, config=config.Config()):
     if stem:
-        x = globals()["stem"](x, name=join(name, "stem"), config=config)
+        x = globals()["stem"](x, name=util.join(name, "stem"), config=config)
 
     xs = [x]
 
@@ -93,17 +92,17 @@ def hrnet(x, num_units, filters, blocks, num_modules, stem=True, name=None, conf
                         block=blocks[block_index],
                         num_units=num_units[block_index],
                         filters=filters[block_index],
-                        name=join(name, f"block{block_index + 1}", f"module{module_index + 1}"),
+                        name=util.join(name, f"block{block_index + 1}", f"module{module_index + 1}"),
                         config=config)
 
         if block_index < len(num_units) - 1:
-            xs = transition(xs, filters[block_index + 1], name=join(name, f"block{block_index + 1}", "transition"), config=config)
+            xs = transition(xs, filters[block_index + 1], name=util.join(name, f"block{block_index + 1}", "transition"), config=config)
 
     dest_shape = tf.shape(xs[0])
     slice_begin = dest_shape * 0
     for branch_index in range(1, len(xs)):
         x = xs[branch_index]
-        x = config.upsample(x, 2 ** branch_index, method="bilinear")
+        x = util.upsample(x, 2 ** branch_index, method="bilinear", config=config)
         slice_end = tf.concat([dest_shape[:-1], [x.shape[-1]]], axis=0)
         x = tf.slice(x, slice_begin, slice_end)
         xs[branch_index] = x

@@ -5,7 +5,7 @@ from . import config
 def decode(x, filters, shape=None, dropout=None, name="decode", use_bias=True, config=config.Config()):
     if not dropout is None:
         x = tf.keras.layers.Dropout(dropout)(x)
-    x = config.conv(x, filters, kernel_size=1, strides=1, name=join(name, "conv"), use_bias=use_bias)
+    x = conv(x, filters, kernel_size=1, stride=1, use_bias=use_bias, name=join(name, "conv"), config=config)
     if not shape is None:
-        x = config.resize(x, shape, method="bilinear")
+        x = resize(x, shape, method="bilinear", config=config)
     return x

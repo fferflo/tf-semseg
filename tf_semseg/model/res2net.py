@@ -9,7 +9,7 @@ def hierarchical_conv(x, block=conv_norm_act, scales=4, stride=1, kernel_size=3,
 
     # Split 1
     if stride != 1:
-        splits[0] = config.avgpool(splits[0], pool_size=kernel_size, strides=stride, name=join(name, "scale1"))
+        splits[0] = pool(splits[0], kernel_size=kernel_size, stride=stride, mode="avg", name=join(name, "scale1"), config=config)
 
     # Split 2
     splits[1] = block(splits[1], filters=splits[1].shape[-1], stride=stride, kernel_size=kernel_size, name=join(name, "scale2"), config=config, **kwargs)

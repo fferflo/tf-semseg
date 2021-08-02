@@ -29,8 +29,7 @@ def preprocess(color, depth):
 
     return color, depth
 
-def convert_name(layer):
-    key = layer
+def convert_name(key):
     key = key.replace("/", ".")
     key = key.replace("stem_b.stem_", "encoder_")
     key = key.replace("encoder_rgb.conv", "encoder_rgb.conv1")
