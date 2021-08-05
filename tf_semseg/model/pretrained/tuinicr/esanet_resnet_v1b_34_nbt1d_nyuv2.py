@@ -66,7 +66,7 @@ def convert_name(key):
     if "psp" in key:
         key = key.replace("psp", "context_module.features")
         key = key.replace("pool1", "0")
-        key = key.replace("pool5", "1")
+        key = key.replace("pool2", "1")
         key = key.replace("conv", "1.conv")
         key = key.replace("norm", "1.bn")
         key = key.replace("features.final.1", "final_conv")

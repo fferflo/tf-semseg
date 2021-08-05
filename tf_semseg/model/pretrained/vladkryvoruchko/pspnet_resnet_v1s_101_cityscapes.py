@@ -97,7 +97,7 @@ def create():
                 # Pspnet
                 match = re.match(re.escape("psp/pool") + "(.*?)" + re.escape("/") + "(.*)", layer.name)
                 if match:
-                    pool_size = int(match.group(1))
+                    pool_size = [6, 3, 2, 1][int(match.group(1)) - 1]
                     name = "conv5_3_pool" + str(pool_size) + "_conv"
 
                     if layer.name.endswith("conv"):
