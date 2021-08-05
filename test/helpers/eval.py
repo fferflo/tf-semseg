@@ -19,6 +19,21 @@ def cityscapes(predictor, preprocess): # frankfurt_000000_000294_leftImg8bit
 
     return metric.result().numpy()
 
+def ade20k(predictor, preprocess): # ADE_val_00000004
+    color = imageio.imread(os.path.join(datadir, "ade20k", "color.jpg")).astype("float32")
+    labels = imageio.imread(os.path.join(datadir, "ade20k", "labels.png")).astype("int32") - 1
+
+    color_preprocessed = preprocess(color)
+
+    prediction = predictor(np.expand_dims(color_preprocessed, axis=0))[0]
+    classes_num = prediction.shape[-1]
+
+    labels = tf.one_hot(labels.astype("int32"), axis=-1, depth=classes_num)
+    metric = tf_semseg.metric.Accuracy(classes_num=classes_num)
+    metric.update_state(labels, prediction)
+
+    return metric.result().numpy()
+
 def nyu_depth_v2(predictor, preprocess):
     color = imageio.imread(os.path.join(datadir, "nyu-depth-v2", "color.png")).astype("float32")
     depth = imageio.imread(os.path.join(datadir, "nyu-depth-v2", "depth.png")).astype("float32") * 0.1 # Depth is stored as 10e-4 m

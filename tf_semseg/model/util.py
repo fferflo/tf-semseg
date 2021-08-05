@@ -38,6 +38,28 @@ def conv_norm_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, gro
     x = act(x, config=config)
     return x
 
+def conv_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, use_bias=True, name=None, config=config.Config()):
+    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, use_bias=use_bias, name=join(name, "conv"), config=config)
+    x = act(x, config=config)
+    return x
+
+def pad_to_size(x, shape, mode="center"):
+    pad_width = shape - tf.shape(x)[1:-1]
+    if mode == "center":
+        pad_width_front = pad_width // 2
+        pad_width_back = pad_width - pad_width_front
+    elif mode == "back":
+        pad_width_front = pad_width * 0
+        pad_width_back = pad_width
+    elif mode == "front":
+        pad_width_front = pad_width
+        pad_width_back = pad_width * 0
+    else:
+        raise ValueError(f"Invalid padding mode {mode}")
+    pad_width = [(0, 0)] + [(pad_width_front[i], pad_width_back[i]) for i in range(len(x.shape) - 2)] + [(0, 0)]
+    x = tf.pad(x, pad_width)
+    return x
+
 def set_name(x, name):
     return tf.keras.layers.Lambda(lambda x: x, name=name)(x)
 

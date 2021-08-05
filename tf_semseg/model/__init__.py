@@ -13,3 +13,5 @@ from . import transformer
 from . import mscale
 from . import pretrained
 from . import aspp
+from . import upernet
+from . import vit
