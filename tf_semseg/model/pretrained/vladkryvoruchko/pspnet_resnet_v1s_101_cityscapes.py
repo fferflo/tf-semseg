@@ -2,6 +2,7 @@ import tensorflow as tf
 import numpy as np
 import sys, re, h5py
 from ... import resnet, pspnet, decode
+from .. import weights
 from ...config import Config
 from ...util import *
 
@@ -129,7 +130,6 @@ def create():
                 layer.set_weights([weights[name]["kernel:0"], weights[name]["bias:0"]])
                 weights_left.remove(name)
         if len(weights_left) > 0:
-            print("Failed to load weights for layers " + str(weights_left))
-            sys.exit(-1) # TODO: replace all of these with exceptions
+            raise weights.LoadWeightsException("Failed to load weights for layers " + str(weights_left))
 
     return model
