@@ -38,6 +38,9 @@ def conv_norm_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, gro
     x = act(x, config=config)
     return x
 
+def set_name(x, name):
+    return tf.keras.layers.Lambda(lambda x: x, name=name)(x)
+
 def repeat(x, n, block, name=None, **kwargs):
     for i in range(n):
         x = block(x, name=join(name, str(i + 1)), **kwargs)
