@@ -17,9 +17,9 @@ def stem(x, type, name, config=config.Config()): # For variants, see: https://gi
         else:
             raise ValueError("Unknown stem " + type)
 
-        x = conv_norm_act(x, filters=filters[0], kernel_size=3, stride=2, name=join(name, "1"))
-        x = conv_norm_act(x, filters=filters[1], kernel_size=3, stride=1, name=join(name, "2"))
-        x = conv_norm_act(x, filters=filters[2], kernel_size=3, stride=1, name=join(name, "3"))
+        x = conv_norm_act(x, filters=filters[0], kernel_size=3, stride=2, name=join(name, "1"), config=config)
+        x = conv_norm_act(x, filters=filters[1], kernel_size=3, stride=1, name=join(name, "2"), config=config)
+        x = conv_norm_act(x, filters=filters[2], kernel_size=3, stride=1, name=join(name, "3"), config=config)
 
     x = pool(x, kernel_size=3, stride=2, mode=pool_mode, config=config)
 
