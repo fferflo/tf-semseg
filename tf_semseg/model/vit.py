@@ -8,7 +8,7 @@ def vit(x, window_size, filters, num_blocks, block, pad_mode="center", positiona
     x = transformer.split_windows(x, window_size, pad_mode=pad_mode) # [batch, patch, filters]
 
     # Embed
-    x = conv(x, filters=filters, kernel_size=1, stride=1, bias=True, name=join(name, "embed", "conv"), config=config) # TODO: replace filters with channels
+    x = conv(x, filters=filters, kernel_size=1, stride=1, bias=True, name=join(name, "embed", "conv"), config=config)
     x = transformer.class_token(x, name=join(name, "embed", "class_token"), config=config)
     x = transformer.positional_embedding(
         x,
