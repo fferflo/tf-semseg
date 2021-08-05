@@ -24,7 +24,7 @@ def interpolate_block(x, level, resize_method, filters, name=None, config=config
         return x
     x = tf.keras.layers.Lambda(pool, output_shape=tuple([None] + [level] * (len(x.shape) - 2) + [x.shape[-1]]))(x)
 
-    x = conv_norm_act(x, filters=filters, kernel_size=1, stride=1, use_bias=False, name=name, config=config)
+    x = conv_norm_act(x, filters=filters, kernel_size=1, stride=1, name=name, config=config)
     x = resize(x, tf.shape(orig_x)[1:-1], method=resize_method, config=config)
 
     return x

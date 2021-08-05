@@ -8,14 +8,14 @@ def stem(x, name=None, config=config.Config()):
 
 def downsample(x, n, filters, skip_last_act, name=None, config=config.Config()):
     for i in range(n):
-        x = util.conv(x, filters=filters if i == n - 1 else x.shape[-1], kernel_size=3, stride=2, name=util.join(name, str(i), "conv"), config=config)
+        x = util.conv(x, filters=filters if i == n - 1 else x.shape[-1], kernel_size=3, stride=2, use_bias=False, name=util.join(name, str(i), "conv"), config=config)
         x = util.norm(x, name=util.join(name, str(i), "norm"), config=config)
         if i < n - 1 or not skip_last_act:
             x = util.act(x, config=config)
     return x
 
 def upsample(x, n, filters, name=None, config=config.Config()):
-    x = util.conv(x, filters=filters, kernel_size=1, stride=1, name=util.join(name, "conv"), config=config)
+    x = util.conv(x, filters=filters, kernel_size=1, stride=1, use_bias=False, name=util.join(name, "conv"), config=config)
     x = util.norm(x, name=util.join(name, "norm"), config=config)
     x = util.upsample(x, (2 ** n), method="bilinear", config=config)
     return x

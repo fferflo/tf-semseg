@@ -86,10 +86,11 @@ default_mode = "tensorflow"
 
 class Config:
     def __init__(self, norm=default_norm, act=default_act, mode=default_mode, resize_align_corners=False, upsample_mode="resize"):
+        self.mode = mode
         if not mode in ["tensorflow", "pytorch"]:
             raise ValueError(f"Invalid config mode {mode}")
 
-        def conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, use_bias=False, name=None):
+        def conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, use_bias=True, name=None):
             if filters is None:
                 filters = x.shape[-1]
             if mode == "tensorflow":
