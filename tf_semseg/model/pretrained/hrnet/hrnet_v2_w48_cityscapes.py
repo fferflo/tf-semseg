@@ -17,7 +17,7 @@ def create():
 
     x = input
     x = hrnet.hrnet_v2_w48(x, config=config)
-    x = conv_norm_act(x, filters=x.shape[-1], kernel_size=1, stride=1, use_bias=True, name="last_layer", config=config) # Yes, this has bias in pretrained weights
+    x = conv_norm_act(x, filters=x.shape[-1], kernel_size=1, stride=1, bias=True, name="last_layer", config=config) # Yes, this has bias in pretrained weights
     x = decode.decode(x, 19, shape=tf.shape(input)[1:-1], config=config)
     x = tf.keras.layers.Softmax()(x)
 

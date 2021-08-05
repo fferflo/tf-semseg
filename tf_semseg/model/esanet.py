@@ -22,7 +22,7 @@ def stem(rgb, depth, se_reduction=16, name=None, config=config.Config()):
 def upsample(x, factor, name=None, config=config.Config()):
     filters = x.shape[-1]
     x = resize(x, factor * tf.shape(x)[1:-1], method="nearest", config=config)
-    x = conv(x, filters, kernel_size=3, groups=filters, name=join(name, "conv"), use_bias=True, config=config)
+    x = conv(x, filters, kernel_size=3, groups=filters, name=join(name, "conv"), bias=True, config=config)
     return x
 
 def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, strides, name=None, psp_bin_sizes=[1, 5], block=erfnet.non_bottleneck_block_1d, se_reduction=16, decoder_filters=[512, 256, 128], num_decoder_units=[3, 3, 3], config=config.Config()):
@@ -69,7 +69,7 @@ def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, str
         x = upsample(x, factor=2, name=join(name, "decode", f"block{block_index + 1}", "upsample"), config=config)
         x = shortcut.add(x, encoder_blocks[-(block_index + 2)], name=join(name, "decode", f"block{block_index + 1}", "shortcut"), config=config)
 
-    x = conv(x, classes, kernel_size=3, name=join(name, "decode", "final", "conv"), use_bias=True, config=config) # TODO: this should be initialized differently for training: https://github.com/TUI-NICR/ESANet/blob/56b7aff77e3fc05ce4ffe55142dc805b07956f22/src/models/model.py#L385
+    x = conv(x, classes, kernel_size=3, name=join(name, "decode", "final", "conv"), bias=True, config=config) # TODO: this should be initialized differently for training: https://github.com/TUI-NICR/ESANet/blob/56b7aff77e3fc05ce4ffe55142dc805b07956f22/src/models/model.py#L385
     x = upsample(x, factor=2, name=join(name, "decode", "final", "upsample1"), config=config)
     x = upsample(x, factor=2, name=join(name, "decode", "final", "upsample2"), config=config)
 

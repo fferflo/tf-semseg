@@ -14,7 +14,7 @@ def mscale_decode(x, filters, filters_mid, shape=None, dropout=None, name="mscal
     weights = x
     weights = conv_norm_act(weights, filters=filters_mid, kernel_size=3, stride=1, name=join(name, "attention", "1"), config=config)
     weights = conv_norm_act(weights, filters=filters_mid, kernel_size=3, stride=1, name=join(name, "attention", "2"), config=config)
-    weights = decode.decode(weights, 1, name=join(name, "attention", "decode"), use_bias=False)
+    weights = decode.decode(weights, 1, name=join(name, "attention", "decode"), bias=False)
     weights = tf.keras.layers.Activation("sigmoid")(weights)
     if not shape is None:
         weights = resize(weights, shape=shape, method="bilinear", config=config)

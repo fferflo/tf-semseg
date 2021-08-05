@@ -17,7 +17,7 @@ def create():
     x = input
     x = hrnet.hrnet_v2_w48(x, config=config)
     x = ocr.ocr(x, regions=19, filters=512, filters_qkv=256, fix_bias_before_norm=False, config=config)
-    x = conv_norm_act(x, filters=512, kernel_size=1, stride=1, use_bias=False, name=join("final"), config=config)
+    x = conv_norm_act(x, filters=512, kernel_size=1, stride=1, bias=False, name=join("final"), config=config)
     x = tf.keras.layers.Dropout(0.05)(x)
     x = decode.decode(x, 19, shape=tf.shape(input)[1:-1], config=config)
     x = tf.keras.layers.Softmax()(x)

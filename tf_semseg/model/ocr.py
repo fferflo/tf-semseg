@@ -23,12 +23,12 @@ def object_attention(token_features, regions_features, filters_qkv, name=None, c
 
 def ocr(x, regions, filters=512, filters_qkv=256, fix_bias_before_norm=True, name="ocr", config=config.Config()):
     regions_probs = x
-    regions_probs = conv_norm_act(regions_probs, kernel_size=1, stride=1, use_bias=not fix_bias_before_norm, name=join(name, "regions"), config=config)
+    regions_probs = conv_norm_act(regions_probs, kernel_size=1, stride=1, bias=not fix_bias_before_norm, name=join(name, "regions"), config=config)
     regions_probs = decode.decode(regions_probs, filters=regions, name=join(name, "regions", "decode"), config=config)
     regions_probs = transformer.tokenize(regions_probs)
     regions_probs = tf.nn.softmax(regions_probs, axis=1) # [batch, token, regions]
 
-    x = conv_norm_act(x, filters=filters, kernel_size=3, stride=1, use_bias=not fix_bias_before_norm, name=join(name, "initial"), config=config)
+    x = conv_norm_act(x, filters=filters, kernel_size=3, stride=1, bias=not fix_bias_before_norm, name=join(name, "initial"), config=config)
     x_tokens = transformer.tokenize(x) # [batch, token, features]
 
     # Gather

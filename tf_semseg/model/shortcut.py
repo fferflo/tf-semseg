@@ -7,7 +7,7 @@ def add(dest, src, stride=1, activation=True, name=None, config=config.Config())
     dest_channels = dest.get_shape()[-1]
 
     if src_channels != dest_channels or stride > 1:
-        src = conv(src, dest_channels, kernel_size=1, stride=stride, use_bias=False, name=join(name, "conv"), config=config)
+        src = conv(src, dest_channels, kernel_size=1, stride=stride, bias=False, name=join(name, "conv"), config=config)
         src = norm(src, name=join(name, "norm"), config=config)
         if activation:
             src = act(src, config=config)
@@ -16,7 +16,7 @@ def add(dest, src, stride=1, activation=True, name=None, config=config.Config())
 
 def concat(dest, src, stride=1, activation=True, name=None, config=config.Config()):
     if stride > 1:
-        src = conv(src, kernel_size=1, stride=stride, use_bias=False, name=join(name, "conv"), config=config)
+        src = conv(src, kernel_size=1, stride=stride, bias=False, name=join(name, "conv"), config=config)
         src = norm(src, name=join(name, "norm"), config=config)
         if activation:
             src = act(src, config=config)

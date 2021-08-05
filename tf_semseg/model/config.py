@@ -90,14 +90,14 @@ class Config:
         if not mode in ["tensorflow", "pytorch"]:
             raise ValueError(f"Invalid config mode {mode}")
 
-        def conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, use_bias=True, name=None):
+        def conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=True, name=None):
             if filters is None:
                 filters = x.shape[-1]
             if mode == "tensorflow":
-                return ConvND(filters=filters, strides=stride, kernel_size=kernel_size, dilation_rate=dilation_rate, groups=groups, use_bias=use_bias, padding="SAME", name=name)(x)
+                return ConvND(filters=filters, strides=stride, kernel_size=kernel_size, dilation_rate=dilation_rate, groups=groups, use_bias=bias, padding="SAME", name=name)(x)
             elif mode == "pytorch":
                 x = ZeroPaddingND(get_pytorch_same_padding(len(x.get_shape()) - 2, kernel_size, dilation_rate))(x)
-                return ConvND(filters=filters, strides=stride, kernel_size=kernel_size, dilation_rate=dilation_rate, groups=groups, use_bias=use_bias, padding="VALID", name=name)(x)
+                return ConvND(filters=filters, strides=stride, kernel_size=kernel_size, dilation_rate=dilation_rate, groups=groups, use_bias=bias, padding="VALID", name=name)(x)
             else:
                 assert False
         self.conv = conv

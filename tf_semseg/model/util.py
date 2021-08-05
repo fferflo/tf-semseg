@@ -32,14 +32,14 @@ def pool(*args, config=config.Config(), **kwargs):
 
 
 
-def conv_norm_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, use_bias=False, name=None, config=config.Config()):
-    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, use_bias=use_bias, name=join(name, "conv"), config=config)
+def conv_norm_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=False, name=None, config=config.Config()):
+    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, bias=bias, name=join(name, "conv"), config=config)
     x = norm(x, name=join(name, "norm"), config=config)
     x = act(x, config=config)
     return x
 
-def conv_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, use_bias=True, name=None, config=config.Config()):
-    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, use_bias=use_bias, name=join(name, "conv"), config=config)
+def conv_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=True, name=None, config=config.Config()):
+    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, bias=bias, name=join(name, "conv"), config=config)
     x = act(x, config=config)
     return x
 

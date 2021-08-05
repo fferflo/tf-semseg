@@ -19,17 +19,17 @@ def encode(x, filters=None, mlp_filters=None, mlp_layers=2, heads=1, qkv_bias=Tr
     # Self-attention
     x_orig = x
     x = norm(x, name=join(name, "mha", "norm"), config=config)
-    x = conv(x, filters=3 * filters, kernel_size=1, stride=1, use_bias=qkv_bias, name=join(name, "mha", "in_proj"), config=config)
+    x = conv(x, filters=3 * filters, kernel_size=1, stride=1, bias=qkv_bias, name=join(name, "mha", "in_proj"), config=config)
     query, key, value = tf.split(x, num_or_size_splits=3, axis=-1)
     x = multihead_attention(query, key, value, heads=heads, name=join(name, "mha"), config=config)
-    x = conv(x, filters=filters, kernel_size=1, stride=1, use_bias=qkv_bias, name=join(name, "mha", "out_proj"), config=config)
+    x = conv(x, filters=filters, kernel_size=1, stride=1, bias=qkv_bias, name=join(name, "mha", "out_proj"), config=config)
     x = shortcut.add(x, x_orig, name=join(name, "mha", "shortcut")) # TODO: x = tfa.layers.StochasticDepth()([x_orig, x]) as shortcut
 
     # MLP
     x_orig = x
     x = norm(x, name=join(name, "mlp", "norm"), config=config)
     for i in range(mlp_layers):
-        x = conv(x, filters=mlp_filters if i < mlp_layers - 1 else filters, kernel_size=1, stride=1, use_bias=True, name=join(name, "mlp", f"{i + 1}", "conv"), config=config)
+        x = conv(x, filters=mlp_filters if i < mlp_layers - 1 else filters, kernel_size=1, stride=1, bias=True, name=join(name, "mlp", f"{i + 1}", "conv"), config=config)
         if i < mlp_layers - 1:
             x = act(x, config=config)
         # x = tf.keras.layers.Dropout(0.1)(x) # TODO: dropout

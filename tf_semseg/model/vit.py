@@ -8,7 +8,7 @@ def vit(x, window_size, filters, num_blocks, block, pad_mode="center", positiona
     x = transformer.split_windows(x, window_size, pad_mode=pad_mode) # [batch, patch, filters]
 
     # Embed
-    x = conv(x, filters=filters, kernel_size=1, stride=1, use_bias=True, name=join(name, "embed", "conv"), config=config) # TODO: replace use_bias with bias, filters with channels
+    x = conv(x, filters=filters, kernel_size=1, stride=1, bias=True, name=join(name, "embed", "conv"), config=config) # TODO: replace filters with channels
     x = transformer.class_token(x, name=join(name, "embed", "class_token"), config=config)
     x = transformer.positional_embedding(
         x,
@@ -31,8 +31,8 @@ def neck(x, patch_nums, scale, filters=None, resize_method="bilinear", name=None
     scale = tf.convert_to_tensor(scale)
 
     x = tf.reshape(x[:, 1:], tf.concat([[tf.shape(x)[0]], patch_nums, [x.shape[-1]]], axis=0))
-    x = conv(x, filters=filters, kernel_size=1, stride=1, use_bias=True, name=join(name, "conv1"), config=config)
+    x = conv(x, filters=filters, kernel_size=1, stride=1, bias=True, name=join(name, "conv1"), config=config)
     x = resize(x, tf.cast(tf.cast(tf.shape(x)[1:-1], scale.dtype) * scale, "int32"), method=resize_method, config=config)
-    x = conv(x, filters=filters, kernel_size=3, stride=1, use_bias=True, name=join(name, "conv2"), config=config)
+    x = conv(x, filters=filters, kernel_size=3, stride=1, bias=True, name=join(name, "conv2"), config=config)
 
     return x

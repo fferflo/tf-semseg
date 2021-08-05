@@ -33,7 +33,7 @@ def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basi
 
     x = block(x, filters=filters, stride=stride, dilation_rate=dilation_rate, name=join(name, "1"), config=config, **kwargs)
 
-    x = conv(x, filters, kernel_size=3, stride=1, use_bias=False, name=join(name, "2", "conv"), config=config)
+    x = conv(x, filters, kernel_size=3, stride=1, bias=False, name=join(name, "2", "conv"), config=config)
     x = norm(x, name=join(name, "2", "norm"), config=config)
 
     x = shortcut.add(x, orig_x, stride=stride, activation=False, name=join(name, "shortcut"), config=config)
@@ -48,7 +48,7 @@ def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bott
 
     x = block(x, stride=stride, dilation_rate=dilation_rate, name=join(name, "center"), config=config, **kwargs)
 
-    x = conv(x, filters * bottleneck_factor, kernel_size=1, stride=1, use_bias=False, name=join(name, "expand", "conv"), config=config)
+    x = conv(x, filters * bottleneck_factor, kernel_size=1, stride=1, bias=False, name=join(name, "expand", "conv"), config=config)
     x = norm(x, name=join(name, "expand", "norm"), config=config)
 
     x = shortcut.add(x, orig_x, stride=stride, activation=False, name=join(name, "shortcut"), config=config)
