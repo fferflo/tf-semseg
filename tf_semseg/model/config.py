@@ -66,6 +66,18 @@ def UpSamplingND(*args, **kwargs):
             raise ValueError(f"Unsupported number of dimensions {len(x.get_shape())}")
     return constructor
 
+def SpatialDropoutND(*args, **kwargs):
+    def constructor(x):
+        if len(x.get_shape()) == 3:
+            return tf.keras.layers.SpatialDropout1D(*args, **kwargs)(x)
+        elif len(x.get_shape()) == 4:
+            return tf.keras.layers.SpatialDropout2D(*args, **kwargs)(x)
+        elif len(x.get_shape()) == 5:
+            return tf.keras.layers.SpatialDropout3D(*args, **kwargs)(x)
+        else:
+            raise ValueError(f"Unsupported number of dimensions {len(x.get_shape())}")
+    return constructor
+
 def get_pytorch_same_padding(dims, kernel_size, dilation=1):
     kernel_size = np.asarray(kernel_size)
     dilation = np.asarray(dilation)
@@ -76,16 +88,19 @@ def get_pytorch_same_padding(dims, kernel_size, dilation=1):
 
 
 
-def default_norm(x, *args, epsilon=1e-5, momentum=0.997, **kwargs):
-    return tf.keras.layers.BatchNormalization(*args, momentum=momentum, epsilon=epsilon, **kwargs)(x)
+def default_norm(x, epsilon=1e-5, momentum=0.997, **kwargs):
+    return tf.keras.layers.BatchNormalization(momentum=momentum, epsilon=epsilon, **kwargs)(x)
 
 def default_act(x, **kwargs):
     return tf.keras.layers.ReLU(**kwargs)(x)
 
+def default_dropout(x, rate, **kwargs):
+    return tf.keras.layers.Dropout(rate=rate, **kwargs)(x)
+
 default_mode = "tensorflow"
 
 class Config:
-    def __init__(self, norm=default_norm, act=default_act, mode=default_mode, resize_align_corners=False, upsample_mode="resize"):
+    def __init__(self, norm=default_norm, act=default_act, mode=default_mode, resize_align_corners=False, upsample_mode="resize", dropout=default_dropout):
         self.mode = mode
         if not mode in ["tensorflow", "pytorch"]:
             raise ValueError(f"Invalid config mode {mode}")
@@ -156,6 +171,13 @@ class Config:
         else:
             raise ValueError(f"Invalid upsample mode {upsample_mode}")
         self.upsample = upsample
+
+        if isinstance(dropout, str):
+            if dropout == "spatial":
+                dropout = lambda x, rate, name=None: SpatialDropoutND(rate, name=name)(x)
+            else:
+                raise ValueError(f"Invalid dropout mode {dropout}")
+        self.dropout = dropout
 
         self.norm = norm
         self.act = act
