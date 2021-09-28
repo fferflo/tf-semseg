@@ -78,20 +78,46 @@ class ConfusionMatrix(tf.keras.metrics.Metric):
         base_config = super(tf.keras.metrics.Metric, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
+def confusionmatrix_to_classious(confusion_matrix):
+    if tf.is_tensor(confusion_matrix):
+        sum_over_row = tf.reduce_sum(confusion_matrix, axis=0)
+        sum_over_col = tf.reduce_sum(confusion_matrix, axis=1)
+        true_positives =  tf.linalg.diag_part(confusion_matrix)
+
+        denominator = sum_over_row + sum_over_col - true_positives
+
+        return true_positives / denominator
+    else:
+        sum_over_row = np.sum(confusion_matrix, axis=0)
+        sum_over_col = np.sum(confusion_matrix, axis=1)
+        true_positives = np.diag(confusion_matrix)
+
+        denominator = sum_over_row + sum_over_col - true_positives
+
+        return true_positives / denominator
+
 class ClassIoUs(ConfusionMatrix):
     def __init__(self, *args, name = "ClassIoUs", **kwargs):
         super().__init__(*args, name=name, **kwargs)
 
     def result(self):
         cm = super().result()
+        return tf.cast(confusionmatrix_to_classious(cm), dtype=self._dtype)
 
-        sum_over_row = tf.cast(tf.reduce_sum(cm, axis=0), dtype=self._dtype)
-        sum_over_col = tf.cast(tf.reduce_sum(cm, axis=1), dtype=self._dtype)
-        true_positives = tf.cast(tf.linalg.diag_part(cm), dtype=self._dtype)
+def classious_to_meaniou(ious):
+    if tf.is_tensor(ious):
+        num_valid_entries = tf.reduce_sum(tf.where(tf.math.is_nan(ious), 0.0, 1.0))
+        ious = tf.where(tf.math.is_nan(ious), tf.zeros_like(ious), ious)
 
-        denominator = sum_over_row + sum_over_col - true_positives
+        return tf.cast(tf.math.divide_no_nan(tf.reduce_sum(ious, name="mean_iou"), num_valid_entries), dtype=ious.dtype)
+    else:
+        num_valid_entries = np.sum(np.where(np.isnan(ious), 0.0, 1.0))
+        ious = np.where(np.isnan(ious), np.zeros_like(ious), ious)
 
-        return true_positives / denominator
+        return np.nan_to_num(np.sum(ious, name="mean_iou") / num_valid_entries).astype(ious.dtype)
+
+def confusionmatrix_to_meaniou(confusion_matrix):
+    return classious_to_meaniou(confusionmatrix_to_classious(confusion_matrix))
 
 class MeanIoU(ClassIoUs):
     def __init__(self, *args, name = "MeanIoU", **kwargs):
@@ -99,11 +125,19 @@ class MeanIoU(ClassIoUs):
 
     def result(self):
         ious = super().result()
+        return tf.cast(classious_to_meaniou(ious), dtype=self._dtype)
 
-        num_valid_entries = tf.reduce_sum(tf.cast(tf.math.logical_not(tf.math.is_nan(ious)), dtype=self._dtype))
-        ious = tf.where(tf.math.is_nan(ious), tf.zeros_like(ious), ious)
+def confusionmatrix_to_accuracy(confusion_matrix):
+    if tf.is_tensor(confusion_matrix):
+        total = tf.reduce_sum(confusion_matrix)
+        true_positives = tf.reduce_sum(tf.linalg.diag_part(confusion_matrix))
 
-        return tf.math.divide_no_nan(tf.reduce_sum(ious, name='mean_iou'), num_valid_entries)
+        return true_positives / total
+    else:
+        total = np.sum(confusion_matrix)
+        true_positives = np.sum(np.diag(confusion_matrix))
+
+        return true_positives / total
 
 class Accuracy(ConfusionMatrix):
     def __init__(self, *args, name="Accuracy", **kwargs):
@@ -111,11 +145,7 @@ class Accuracy(ConfusionMatrix):
 
     def result(self):
         cm = super().result()
-
-        total = tf.cast(tf.reduce_sum(cm), dtype=self._dtype)
-        true_positives = tf.cast(tf.reduce_sum(tf.linalg.diag_part(cm)), dtype=self._dtype)
-
-        return true_positives / total
+        return tf.cast(confusionmatrix_to_accuracy(cm), dtype=self._dtype)
 
 class ClassAccuracies(ConfusionMatrix):
     def __init__(self, *args, name="ClassAccuracies", **kwargs):
