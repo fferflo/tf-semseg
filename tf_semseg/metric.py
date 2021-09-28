@@ -117,7 +117,7 @@ class Accuracy(ConfusionMatrix):
 
         return true_positives / total
 
-class ClassAccuracies(ConfusionMatrix):
+class ClassAccuracies(ConfusionMatrix): # Recall
     def __init__(self, *args, name="ClassAccuracies", **kwargs):
         super().__init__(*args, name=name, **kwargs)
 
@@ -125,6 +125,18 @@ class ClassAccuracies(ConfusionMatrix):
         cm = super().result()
 
         total = tf.cast(tf.reduce_sum(cm, axis=1), dtype=self._dtype)
+        true_positives = tf.cast(tf.linalg.diag_part(cm), dtype=self._dtype)
+
+        return true_positives / total
+
+class ClassPrecision(ConfusionMatrix):
+    def __init__(self, *args, name="ClassPrecision", **kwargs):
+        super().__init__(*args, name=name, **kwargs)
+
+    def result(self):
+        cm = super().result()
+
+        total = tf.cast(tf.reduce_sum(cm, axis=0), dtype=self._dtype)
         true_positives = tf.cast(tf.linalg.diag_part(cm), dtype=self._dtype)
 
         return true_positives / total
