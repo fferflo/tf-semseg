@@ -44,7 +44,7 @@ def colorize(segmentation, image=None, class_to_color=None, classes_num=None, do
 
     # Add dont-care class at the end
     dont_care = tf.logical_or(segmentation >= len(class_to_color), segmentation < 0)
-    class_to_color = tf.convert_to_tensor(class_to_color + [dont_care_color])
+    class_to_color = tf.concat([class_to_color, [dont_care_color]], axis=0)
     segmentation_rgb = tf.where(dont_care, len(class_to_color) - 1, segmentation)
 
     # Gather segmentation colors
