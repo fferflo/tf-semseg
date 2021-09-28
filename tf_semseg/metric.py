@@ -16,8 +16,8 @@ class BoundaryLabelRelaxed:
     def result(self):
         return self.inner_metric.result()
 
-    def reset_states(self):
-        self.inner_metric.reset_states()
+    def reset_state(self):
+        self.inner_metric.reset_state()
 
 class ConfusionMatrix(tf.keras.metrics.Metric):
     def __init__(self, classes_num, *args, allow_multiple_groundtruths=True, dontcare_prediction="forbidden", **kwargs):
@@ -27,7 +27,7 @@ class ConfusionMatrix(tf.keras.metrics.Metric):
         assert dontcare_prediction in ["forbidden", "ignore", "error"]
         self.dontcare_prediction = dontcare_prediction
         self.total_cm = self.add_weight(
-            'total_confusion_matrix',
+            "total_confusion_matrix",
             shape=(self.classes_num, self.classes_num),
             initializer=tf.zeros_initializer,
             dtype=tf.float64)
@@ -70,11 +70,11 @@ class ConfusionMatrix(tf.keras.metrics.Metric):
     def result(self):
         return self.total_cm
 
-    def reset_states(self):
+    def reset_state(self):
         tf.keras.backend.set_value(self.total_cm, np.zeros((self.classes_num, self.classes_num)))
 
     def get_config(self):
-        config = {'classes_num': self.classes_num}
+        config = {"classes_num": self.classes_num}
         base_config = super(tf.keras.metrics.Metric, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -103,7 +103,7 @@ class MeanIoU(ClassIoUs):
         num_valid_entries = tf.reduce_sum(tf.cast(tf.math.logical_not(tf.math.is_nan(ious)), dtype=self._dtype))
         ious = tf.where(tf.math.is_nan(ious), tf.zeros_like(ious), ious)
 
-        return tf.math.divide_no_nan(tf.reduce_sum(ious, name='mean_iou'), num_valid_entries)
+        return tf.math.divide_no_nan(tf.reduce_sum(ious, name="mean_iou"), num_valid_entries)
 
 class Accuracy(ConfusionMatrix):
     def __init__(self, *args, name="Accuracy", **kwargs):
