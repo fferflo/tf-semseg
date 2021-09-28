@@ -56,7 +56,7 @@ def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bott
     x = act(x, config=config)
     return x
 
-def resnet(x, block, num_residual_units, filters, dilation_rates, strides, name=None, stem="b", config=config.Config(), **kwargs):
+def resnet(x, block, num_residual_units, filters, strides, dilation_rates, name=None, stem="b", config=config.Config(), **kwargs):
     if stem != None:
         x = globals()["stem"](x, stem, name=join(name, "stem_" + stem), config=config)
 
