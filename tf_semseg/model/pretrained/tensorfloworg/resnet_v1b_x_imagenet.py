@@ -25,10 +25,14 @@ def convert_name(name):
 
 config = Config()
 
-def create_x(dilate, resnet_v1_x, url):
-    input = tf.keras.layers.Input((None, None, 3))
+def create_x(input, dilate, resnet_v1_x, url):
+    return_model = input is None
+    if input is None:
+        input = tf.keras.layers.Input((None, None, 3))
+
     x = input
     x = resnet_v1_x(x, dilate=dilate, stem="b", config=config)
+
     model = tf.keras.Model(inputs=[input], outputs=[x])
 
     weights_compressed = tf.keras.utils.get_file(url.split("/")[-1], url)
@@ -37,4 +41,4 @@ def create_x(dilate, resnet_v1_x, url):
         pyunpack.Archive(weights_compressed).extractall(os.path.dirname(weights_compressed))
     tf_semseg.model.pretrained.weights.load_ckpt(weights_uncompressed, model, convert_name)
 
-    return model
+    return model if return_model else x

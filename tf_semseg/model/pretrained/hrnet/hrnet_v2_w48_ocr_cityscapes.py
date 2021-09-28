@@ -11,8 +11,10 @@ def convert_name(name):
     name = "model." + name
     return name
 
-def create():
-    input = tf.keras.layers.Input((None, None, 3))
+def create(input=None):
+    return_model = input is None
+    if input is None:
+        input = tf.keras.layers.Input((None, None, 3))
 
     x = input
     x = hrnet.hrnet_v2_w48(x, config=config)
@@ -28,4 +30,4 @@ def create():
     weights = tf.keras.utils.get_file("hrnet_ocr_cs_8162_torch11.pth", url)
     tf_semseg.model.pretrained.weights.load_pth(weights, model, convert_name, ignore=lambda name: name.startswith("loss."))
 
-    return model
+    return model if return_model else x

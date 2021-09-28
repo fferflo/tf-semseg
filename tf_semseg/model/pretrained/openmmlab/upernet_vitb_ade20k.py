@@ -57,8 +57,10 @@ config_bn = Config(
     resize_align_corners=False
 )
 
-def create():
-    input = tf.keras.layers.Input((None, None, 3))
+def create(input=None):
+    return_model = input is None
+    if input is None:
+        input = tf.keras.layers.Input((None, None, 3))
 
     x = input
     vit_block = partial(transformer.encode, filters=768, mlp_filters=4 * 768, mlp_layers=2, heads=12, qkv_bias=True)
@@ -83,4 +85,4 @@ def create():
         "backbone.patch_embed.projection.weight": lambda w: np.expand_dims(np.reshape(np.transpose(w, (2, 3, 1, 0)), [-1, w.shape[0]]), axis=0)
     })
 
-    return model
+    return model if return_model else x

@@ -98,10 +98,15 @@ config = Config(
     norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x)
 )
 
-def create():
+def create(input_rgb=None, input_depth=None):
+    if (input_rgb is None) != (input_depth is None):
+        raise ValueError("Either both or neither of input_rgb and input_depth should be given")
+    return_model = input_rgb is None
+    if input_rgb is None:
+        input_rgb = tf.keras.layers.Input((None, None, 3))
+        input_depth = tf.keras.layers.Input((None, None, 1))
+
     # Create model
-    input_rgb = tf.keras.layers.Input((None, None, 3))
-    input_depth = tf.keras.layers.Input((None, None, 1))
     x = esanet.esanet(
         input_rgb, input_depth,
         classes=40,
@@ -130,4 +135,4 @@ def create():
 
     tf_semseg.model.pretrained.weights.load_pth(weights_uncompressed, model, convert_name, ignore=lambda name: "side_output" in name)
 
-    return model
+    return model if return_model else x

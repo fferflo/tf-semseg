@@ -19,8 +19,10 @@ config = Config(
     resize_align_corners=True
 )
 
-def create():
-    input = tf.keras.layers.Input((None, None, 3))
+def create(input=None):
+    return_model = input is None
+    if input is None:
+        input = tf.keras.layers.Input((None, None, 3))
 
     x = input
     x = resnet.resnet_v1_101(x, dilate=[False, False, True, True], stem="s", config=config)
@@ -132,4 +134,4 @@ def create():
         if len(weights_left) > 0:
             raise weights.LoadWeightsException("Failed to load weights for layers " + str(weights_left))
 
-    return model
+    return model if return_model else x

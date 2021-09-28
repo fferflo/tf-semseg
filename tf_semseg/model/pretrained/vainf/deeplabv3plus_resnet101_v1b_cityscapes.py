@@ -54,8 +54,10 @@ config = Config(
     resize_align_corners=False
 )
 
-def create():
-    input = tf.keras.layers.Input((None, None, 3))
+def create(input=None):
+    return_model = input is None
+    if input is None:
+        input = tf.keras.layers.Input((None, None, 3))
 
     x = input
     x = resnet.resnet_v1_101(x, stem="b", dilate=[False, False, False, True], config=config)
@@ -82,4 +84,4 @@ def create():
 
     tf_semseg.model.pretrained.weights.load_pth(download_file, model, convert_name)
 
-    return model
+    return model if return_model else x

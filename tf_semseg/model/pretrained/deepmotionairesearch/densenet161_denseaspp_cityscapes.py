@@ -36,8 +36,10 @@ config = Config(
     resize_align_corners=False
 )
 
-def create():
-    input = tf.keras.layers.Input((None, None, 3))
+def create(input=None):
+    return_model = input is None
+    if input is None:
+        input = tf.keras.layers.Input((None, None, 3))
 
     x = input
     x = densenet.densenet(x, filters=48, num_units=[6, 12, 36, 24], strides=[2, 1, 1, 1], dilation_rates=[1, 1, 2, 4], bottleneck_factor=4, stem=True, config=config)
@@ -54,4 +56,4 @@ def create():
 
     tf_semseg.model.pretrained.weights.load_pth(download_file, model, convert_name) # TODO: rename load_pth to load_torch
 
-    return model
+    return model if return_model else x
