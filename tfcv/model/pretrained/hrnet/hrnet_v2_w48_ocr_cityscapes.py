@@ -1,7 +1,7 @@
 import tensorflow as tf
 from ... import hrnet, decode, ocr
 from ...util import *
-import tf_semseg
+import tfcv
 
 from .util import preprocess, config, convert_name_hrnet, convert_name_ocr
 
@@ -28,6 +28,6 @@ def create(input=None):
 
     url = "https://github.com/hsfzxjy/models.storage/releases/download/HRNet-OCR/hrnet_ocr_cs_8162_torch11.pth"
     weights = tf.keras.utils.get_file("hrnet_ocr_cs_8162_torch11.pth", url)
-    tf_semseg.model.pretrained.weights.load_pth(weights, model, convert_name, ignore=lambda name: name.startswith("loss."))
+    tfcv.model.pretrained.weights.load_pth(weights, model, convert_name, ignore=lambda name: name.startswith("loss."))
 
     return model if return_model else x

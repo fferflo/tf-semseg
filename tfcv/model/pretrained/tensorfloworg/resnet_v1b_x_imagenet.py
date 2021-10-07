@@ -1,5 +1,5 @@
 import tensorflow as tf
-import pyunpack, os, tf_semseg
+import pyunpack, os, tfcv
 import numpy as np
 from ...config import Config
 
@@ -39,6 +39,6 @@ def create_x(input, dilate, resnet_v1_x, url):
     weights_uncompressed = weights_compressed[:-len("_2016_08_28.tar.gz")] + ".ckpt"
     if not os.path.isfile(weights_uncompressed):
         pyunpack.Archive(weights_compressed).extractall(os.path.dirname(weights_compressed))
-    tf_semseg.model.pretrained.weights.load_ckpt(weights_uncompressed, model, convert_name)
+    tfcv.model.pretrained.weights.load_ckpt(weights_uncompressed, model, convert_name)
 
     return model if return_model else x

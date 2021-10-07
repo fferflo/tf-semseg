@@ -2,7 +2,7 @@ import tensorflow as tf
 from ... import hrnet, decode, ocr, mscale
 from ...util import *
 from ...config import Config
-import tf_semseg, os, re
+import tfcv, os, re
 from google_drive_downloader import GoogleDriveDownloader as gdd
 
 from ..hrnet.util import preprocess, convert_name_hrnet, convert_name_ocr # This model is based on hrnet_v2_w48_ocr from the hrnet package
@@ -43,6 +43,6 @@ def create(input=None):
 
     weights = os.path.join(os.path.expanduser("~"), ".keras", "cityscapes_ocrnet.HRNet_Mscale_outstanding-turtle.pth")
     gdd.download_file_from_google_drive(file_id="1lse0Mqf7ny5qqV99nGQ3ccXTKJ6kNGoH", dest_path=weights)
-    tf_semseg.model.pretrained.weights.load_pth(weights, model, convert_name)
+    tfcv.model.pretrained.weights.load_pth(weights, model, convert_name)
 
     return model if return_model else x

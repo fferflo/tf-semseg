@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import re,  tf_semseg
+import re,  tfcv
 from ... import vit, upernet, transformer, decode
 from ...config import Config
 from ...util import *
@@ -81,7 +81,7 @@ def create(input=None):
     url = "https://download.openmmlab.com/mmsegmentation/v0.5/vit/upernet_vit-b16_mln_512x512_80k_ade20k/upernet_vit-b16_mln_512x512_80k_ade20k-0403cee1.pth"
     weights = tf.keras.utils.get_file("upernet_vit-b16_mln_512x512_80k_ade20k-0403cee1.pth", url)
 
-    tf_semseg.model.pretrained.weights.load_pth(weights, model, convert_name, ignore=lambda n: n.startswith("auxiliary"), map={
+    tfcv.model.pretrained.weights.load_pth(weights, model, convert_name, ignore=lambda n: n.startswith("auxiliary"), map={
         "backbone.patch_embed.projection.weight": lambda w: np.expand_dims(np.reshape(np.transpose(w, (2, 3, 1, 0)), [-1, w.shape[0]]), axis=0)
     })
 

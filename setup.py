@@ -3,13 +3,13 @@
 from setuptools import setup, find_packages
 
 setup(
-    name="tf-semseg",
+    name="tfcv",
     version="0.2.0",
     python_requires=">=3",
-    description="Semantic segmentation utilities for tensorflow",
+    description="Computer vision for tensorflow",
     author="Florian Fervers",
     author_email="florian.fervers@gmail.com",
-    url="https://github.com/fferflo/tf-semseg",
+    url="https://github.com/fferflo/tfcv",
     packages=find_packages(),
     license="MIT",
     include_package_data=True,

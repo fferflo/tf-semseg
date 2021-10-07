@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import sys, re, os, tf_semseg
+import sys, re, os, tfcv
 from google_drive_downloader import GoogleDriveDownloader as gdd
 from ... import resnet, aspp, decode
 from ...config import Config
@@ -82,6 +82,6 @@ def create(input=None):
     download_file = os.path.join(os.path.expanduser("~"), ".keras", "best_deeplabv3plus_resnet101_cityscapes_os16.pth")
     gdd.download_file_from_google_drive(file_id="1t7TC8mxQaFECt4jutdq_NMnWxdm6B-Nb", dest_path=download_file)
 
-    tf_semseg.model.pretrained.weights.load_pth(download_file, model, convert_name)
+    tfcv.model.pretrained.weights.load_pth(download_file, model, convert_name)
 
     return model if return_model else x

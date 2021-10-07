@@ -1,5 +1,6 @@
-# tf-semseg
+# tfcv
 
 ---------
 
-Provide models, loss functions, metrics, inference strategies for semantic segmentation using tensorflow.
+Provide models, loss functions, metrics, inference strategies for computer vision using tensorflow.
+

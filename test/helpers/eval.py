@@ -1,4 +1,4 @@
-import tf_semseg, cv2, imageio, os
+import tfcv, cv2, imageio, os
 import numpy as np
 import tensorflow as tf
 
@@ -14,7 +14,7 @@ def cityscapes(predictor, preprocess): # frankfurt_000000_000294_leftImg8bit
     classes_num = prediction.shape[-1]
 
     labels = tf.one_hot(labels.astype("int32"), axis=-1, depth=classes_num)
-    metric = tf_semseg.metric.Accuracy(classes_num=classes_num)
+    metric = tfcv.metric.Accuracy(classes_num=classes_num)
     metric.update_state(labels, prediction)
 
     return metric.result().numpy()
@@ -29,7 +29,7 @@ def ade20k(predictor, preprocess): # ADE_val_00000004
     classes_num = prediction.shape[-1]
 
     labels = tf.one_hot(labels.astype("int32"), axis=-1, depth=classes_num)
-    metric = tf_semseg.metric.Accuracy(classes_num=classes_num)
+    metric = tfcv.metric.Accuracy(classes_num=classes_num)
     metric.update_state(labels, prediction)
 
     return metric.result().numpy()
@@ -49,7 +49,7 @@ def nyu_depth_v2(predictor, preprocess):
     classes_num = prediction.shape[-1]
 
     labels = tf.one_hot(labels.astype("int32") - 1, axis=-1, depth=classes_num)
-    metric = tf_semseg.metric.Accuracy(classes_num=classes_num)
+    metric = tfcv.metric.Accuracy(classes_num=classes_num)
     metric.update_state(labels, prediction)
 
     return metric.result().numpy()

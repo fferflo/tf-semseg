@@ -4,7 +4,7 @@ from google_drive_downloader import GoogleDriveDownloader as gdd
 import os, pyunpack
 import numpy as np
 from ...config import Config
-import tf_semseg
+import tfcv
 
 # Expects depth as mm and rgb in [0.0, 255.0]
 
@@ -133,6 +133,6 @@ def create(input_rgb=None, input_depth=None):
     if not os.path.isfile(weights_uncompressed):
         pyunpack.Archive(download_file).extractall(os.path.dirname(download_file))
 
-    tf_semseg.model.pretrained.weights.load_pth(weights_uncompressed, model, convert_name, ignore=lambda name: "side_output" in name)
+    tfcv.model.pretrained.weights.load_pth(weights_uncompressed, model, convert_name, ignore=lambda name: "side_output" in name)
 
     return model if return_model else x

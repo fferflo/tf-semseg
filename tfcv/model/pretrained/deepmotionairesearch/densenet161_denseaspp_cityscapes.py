@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import sys, re, os, tf_semseg
+import sys, re, os, tfcv
 from google_drive_downloader import GoogleDriveDownloader as gdd
 from ... import densenet, aspp, decode
 from ...config import Config
@@ -54,6 +54,6 @@ def create(input=None):
     download_file = os.path.join(os.path.expanduser("~"), ".keras", "denseASPP161_795.pkl")
     gdd.download_file_from_google_drive(file_id="1kMKyboVGWlBxgYRYYnOXiA1mj_ufAXNJ", dest_path=download_file)
 
-    tf_semseg.model.pretrained.weights.load_pth(download_file, model, convert_name) # TODO: rename load_pth to load_torch
+    tfcv.model.pretrained.weights.load_pth(download_file, model, convert_name) # TODO: rename load_pth to load_torch
 
     return model if return_model else x

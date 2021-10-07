@@ -1,7 +1,7 @@
 import tensorflow as tf
 from ... import hrnet, decode
 from ...util import *
-import tf_semseg
+import tfcv
 
 from .util import preprocess, config, convert_name_hrnet
 
@@ -27,6 +27,6 @@ def create(input=None):
 
     url = "https://github.com/hsfzxjy/models.storage/releases/download/HRNet-OCR/hrnet_cs_8090_torch11.pth"
     weights = tf.keras.utils.get_file("hrnet_cs_8090_torch11.pth", url)
-    tf_semseg.model.pretrained.weights.load_pth(weights, model, convert_name)
+    tfcv.model.pretrained.weights.load_pth(weights, model, convert_name)
 
     return model if return_model else x
