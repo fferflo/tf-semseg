@@ -80,7 +80,7 @@ class Bootstrapped:
         loss = self.inner_loss(*args)
         loss = tf.reshape(loss, shape=[-1])
 
-        loss = tf.sort(loss, direction='DESCENDING')
+        loss = tf.sort(loss, direction="DESCENDING")
         loss = loss[:tf.cast(self.rate * tf.cast(tf.shape(loss)[0], dtype=tf.float32), dtype=tf.int32)]
 
         return loss
