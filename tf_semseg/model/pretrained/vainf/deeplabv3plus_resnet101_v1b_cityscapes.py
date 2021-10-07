@@ -69,7 +69,7 @@ def create(input=None):
     x = conv_norm_act(x, filters=256, kernel_size=1, stride=1, name=join("aspp", "final"), config=config)
     x = tf.keras.layers.Dropout(0.1)(x)
     x = resize(x, tf.shape(x_skip)[1:-1], method="bilinear", config=config)
-    x = tf.concat([x_skip, x], axis=-1)
+    x = tf.concat([x_skip, x], axis=-1) # TODO: shortcut with resize
 
     x = conv_norm_act(x, filters=256, kernel_size=3, stride=1, name="final", config=config)
     x = decode.decode(x, 19, shape=tf.shape(input)[1:-1], config=config)

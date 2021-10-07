@@ -177,7 +177,7 @@ class Config:
                 dropout = lambda x, rate, name=None: SpatialDropoutND(rate, name=name)(x)
             else:
                 raise ValueError(f"Invalid dropout mode {dropout}")
-        self.dropout = dropout
+        self.dropout = dropout # TODO: this should be named spatial dropout
 
         self.norm = norm
         self.act = act

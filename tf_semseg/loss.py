@@ -70,7 +70,7 @@ class Focal:
     def __call__(self, y_true, y_pred):
         return self.alpha * tf.pow(1.0 - tf.reduce_sum(y_true * y_pred, axis=-1) / tf.reduce_sum(y_true, axis=-1), self.gamma) * self.inner_loss(y_true, y_pred)
 
-class Bootstrapped:
+class Bootstrapped: # TODO: OHEM
     def __init__(self, rate, loss):
         self.rate = rate
         self.inner_loss = loss

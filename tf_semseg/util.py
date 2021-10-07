@@ -2,7 +2,7 @@ import tensorflow as tf
 import numpy as np
 from distinctipy import distinctipy
 
-cityscapes_class_to_color = [
+cityscapes_class_to_color = [ # TODO: move this to tf_semseg.data
     (128, 64,128),
     (244, 35,232),
     ( 70, 70, 70),
