@@ -67,12 +67,16 @@ def load_pth(file, model, convert_name, ignore=None, map={}):
             result = default_mapper(result)
 
         return result
-    def set_weights(layer, weights):
-        dest_shapes = [w.shape for w in layer.get_weights()]
-        src_shapes = [w.shape for w in weights]
-        for dest_shape, src_shape in zip(dest_shapes, src_shapes):
-            if not np.all(dest_shape == src_shape):
-                raise LoadWeightsException(f"Layer {layer.name} with weight shapes {dest_shapes} got invalid weight shapes {src_shapes}")
+    def set_weights(layer, pth_name, weights):
+        layer_weights = layer.get_weights()
+        for i in range(len(weights)):
+            if np.all(layer_weights[i].shape == weights[i].shape):
+                pass
+            elif np.all(np.squeeze(layer_weights[i]).shape == np.squeeze(weights[i]).shape):
+                # print(f"Warning: Reshaping weights in layer {layer.name} from {weights[i].shape} to {layer_weights[i].shape}")
+                weights[i] = np.reshape(weights[i], layer_weights[i].shape)
+            else:
+                raise LoadWeightsException(f"Layer {layer.name} with weight shapes {layer_weights[i].shape} got invalid weight shapes {weights[i].shape} from pth variable {pth_name}")
         layer.set_weights(weights)
 
     for layer in model.layers:
@@ -92,24 +96,24 @@ def load_pth(file, model, convert_name, ignore=None, map={}):
                             weights = np.expand_dims(weights, axis=0)
                 if not layer.bias is None:
                     bias = get_weight([key + ".bias", key + "_bias"])
-                    set_weights(layer, [weights, bias])
+                    set_weights(layer, key, [weights, bias])
                 else:
                     if (key + ".bias") in all_weights:
                         raise LoadWeightsException(f"Convolution layer {layer.name} does not have bias, but found bias in weights file")
-                    set_weights(layer, [weights])
+                    set_weights(layer, key, [weights])
             elif isinstance(layer, tf.keras.layers.BatchNormalization):
                 weights = get_weight(key + ".weight")
                 bias = get_weight(key + ".bias")
                 running_mean = get_weight(key + ".running_mean")
                 running_var = get_weight(key + ".running_var")
-                set_weights(layer, [weights, bias, running_mean, running_var])
+                set_weights(layer, key, [weights, bias, running_mean, running_var])
             elif isinstance(layer, tf.keras.layers.LayerNormalization):
                 weights = get_weight(key + ".weight")
                 bias = get_weight(key + ".bias")
-                set_weights(layer, [weights, bias])
+                set_weights(layer, key, [weights, bias])
             elif isinstance(layer, tf.keras.layers.Embedding):
                 weights = get_weight(key)[0]
-                set_weights(layer, [weights])
+                set_weights(layer, key, [weights])
             else:
                 raise LoadWeightsException(f"Invalid type of layer {layer.name}")
     for key in list(all_weights.keys()):
