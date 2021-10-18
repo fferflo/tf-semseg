@@ -2,7 +2,8 @@ from .util import join
 from . import config, util
 import tensorflow as tf
 
-def aspp(x, filters=256, atrous_rates=[12, 24, 36], name="aspp", config=config.Config()):
+# skip_global_norm is useful when using BN and with batch_size = 1, since that causes variance = 0
+def aspp(x, filters=256, atrous_rates=[12, 24, 36], name="aspp", skip_global_norm=False, config=config.Config()):
     # 1x1 conv
     x0 = util.conv_norm_act(x, filters=filters, kernel_size=1, stride=1, name=join(name, f"1x1"), config=config)
 
@@ -11,7 +12,8 @@ def aspp(x, filters=256, atrous_rates=[12, 24, 36], name="aspp", config=config.C
 
     # Global pooling
     x1 = tf.reduce_mean(x, axis=list(range(len(x.shape)))[1:-1], keepdims=True)
-    x1 = util.conv_norm_act(x1, filters=filters, kernel_size=1, stride=1, name=join(name, f"global"), config=config)
+    # TODO: explicit LayerNorm here, and other places where global pooling is used?
+    x1 = (util.conv_act if skip_global_norm else util.conv_norm_act)(x1, filters=filters, kernel_size=1, stride=1, name=join(name, f"global"), config=config)
     x1 = tf.broadcast_to(x1, tf.shape(x0))
 
     x = tf.concat([x0] + xs + [x1], axis=-1)

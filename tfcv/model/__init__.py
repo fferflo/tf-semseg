@@ -15,3 +15,4 @@ from . import pretrained
 from . import aspp
 from . import upernet
 from . import vit
+from . import psa

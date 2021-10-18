@@ -6,7 +6,7 @@ def tokenize(x):
     return tf.reshape(x, tf.stack([tf.shape(x)[0], tf.math.reduce_prod(tf.shape(x)[1:-1]), x.shape[-1]], axis=0))
 # TODO: should this be named flatten and unflatten?
 def detokenize(x, shape):
-    return tf.reshape(x, tf.concat([tf.shape(x)[:1], shape, tf.shape(x)[-1:]], axis=0))
+    return tf.reshape(x, tf.concat([tf.shape(x)[:1], shape, [x.shape[-1]]], axis=0))
 
 def encode(x, filters=None, mlp_filters=None, mlp_layers=2, heads=1, qkv_bias=True, name=None, config=config.Config()):
     if mlp_layers < 2:
