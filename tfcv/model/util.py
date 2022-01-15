@@ -114,7 +114,7 @@ def get_predecessor(x, predicate):
     if "_keras_history" in vars(x):
         recurse(x._keras_history.layer)
     if len(result) > 1:
-        raise ValueError("Node has more than one predecessor matching the given predicate")
+        raise ValueError(f"Node has more than one predecessor matching the given predicate: {[n.name for n in result]}")
     if len(result) == 0:
         raise ValueError("Node has no predecessor matching the given predicate")
     return result[0].output

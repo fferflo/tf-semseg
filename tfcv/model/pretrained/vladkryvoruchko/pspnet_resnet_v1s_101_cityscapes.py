@@ -10,7 +10,7 @@ from ...util import *
 
 def preprocess(color):
     color = color - np.array([123.68, 116.779, 103.939])
-    color = color[:, :, ::-1]
+    color = color[..., ::-1]
     return color
 
 config = Config(

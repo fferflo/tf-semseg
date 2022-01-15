@@ -38,8 +38,10 @@ def load_pth(file, model, convert_name, ignore=None, map={}):
     all_weights = dict(torch.load(file, map_location=torch.device("cpu")))
     if "state_dict" in all_weights:
         all_weights = all_weights["state_dict"]
-    if "model_state" in all_weights:
+    elif "model_state" in all_weights:
         all_weights = all_weights["model_state"]
+    elif "model" in all_weights:
+        all_weights = all_weights["model"]
     # for k in all_weights.keys():
     #     print(k)
     # for layer in model.layers:
