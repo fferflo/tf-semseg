@@ -81,10 +81,27 @@ def repeat(x, n, block, name=None, **kwargs):
         x = block(x, name=join(name, str(i + 1)), **kwargs)
     return x
 
-def get_predecessor(input, output, predicate):
-    result = list(filter(lambda x: predicate(x.name), tf.keras.Model(inputs=[input], outputs=[output]).layers))
+def get_predecessor(x, predicate):
+    done = set()
+    result = []
+    def recurse(layer):
+        if not layer.name in done:
+            if predicate(layer.name):
+                result.append(layer)
+            done.add(layer.name)
+            for node in layer.inbound_nodes:
+                try:
+                    if isinstance(node.inbound_layers, list):
+                        for layer in node.inbound_layers:
+                            recurse(layer)
+                    else:
+                        recurse(node.inbound_layers)
+                except AttributeError as e:
+                    continue
+    if "_keras_history" in vars(x):
+        recurse(x._keras_history.layer)
     if len(result) > 1:
-        raise ValueError("Tensor has more than one predecessor matching the given predicate")
+        raise ValueError("Node has more than one predecessor matching the given predicate")
     if len(result) == 0:
-        raise ValueError("Tensor has no predecessor matching the given predicate")
+        raise ValueError("Node has no predecessor matching the given predicate")
     return result[0].output

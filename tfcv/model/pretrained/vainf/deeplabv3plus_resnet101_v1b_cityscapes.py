@@ -62,7 +62,7 @@ def create(input=None):
     x = input
     x = resnet.resnet_v1_101(x, stem="b", dilate=[False, False, False, True], config=config)
 
-    x_skip = get_predecessor(input, x, lambda x: x.endswith("block1"))
+    x_skip = get_predecessor(x, lambda x: x.endswith("block1"))
     x_skip = conv_norm_act(x_skip, filters=48, kernel_size=1, stride=1, name="shortcut", config=config)
 
     x = aspp.aspp(x, filters=256, atrous_rates=[6, 12, 18], config=config)
