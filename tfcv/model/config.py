@@ -11,6 +11,8 @@ def ConvND(*args, **kwargs):
             return tf.keras.layers.Conv2D(*args, **kwargs)(x)
         elif len(x.get_shape()) == 5:
             return tf.keras.layers.Conv3D(*args, **kwargs)(x)
+        elif len(x.get_shape()) == 2:
+            return tf.keras.layers.Conv1D(*args, **kwargs)(x[:, tf.newaxis])[:, 0]
         else:
             raise ValueError(f"Unsupported number of dimensions {len(x.get_shape())}")
     return constructor
@@ -86,7 +88,17 @@ def get_pytorch_same_padding(dims, kernel_size, dilation=1):
     padding = np.broadcast_to(padding, (dims,))
     return tuple(padding.tolist())
 
-
+def add_padding(x, padding, kernel_size, dilation_rate=1):
+    if padding == "tensorflow":
+        keras_padding = "SAME"
+    elif padding == "pytorch":
+        x = ZeroPaddingND(get_pytorch_same_padding(len(x.get_shape()) - 2, kernel_size, dilation_rate))(x)
+        keras_padding = "VALID"
+    elif isinstance(padding, int) and padding == 0:
+        keras_padding = "VALID"
+    else:
+        raise ValueError(f"Invalid padding {padding}")
+    return x, keras_padding
 
 def default_norm(x, epsilon=1e-5, momentum=0.997, **kwargs):
     return tf.keras.layers.BatchNormalization(momentum=momentum, epsilon=epsilon, **kwargs)(x)
@@ -94,7 +106,7 @@ def default_norm(x, epsilon=1e-5, momentum=0.997, **kwargs):
 def default_act(x, **kwargs):
     return tf.keras.layers.ReLU(**kwargs)(x)
 
-def default_dropout(x, rate, **kwargs):
+def default_dropout(x, rate, **kwargs): # TODO: remove
     return tf.keras.layers.Dropout(rate=rate, **kwargs)(x)
 
 default_mode = "tensorflow"
@@ -105,16 +117,13 @@ class Config:
         if not mode in ["tensorflow", "pytorch"]:
             raise ValueError(f"Invalid config mode {mode}")
 
-        def conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=True, name=None):
+        def conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=True, padding=self.mode, name=None):
+            if not isinstance(bias, bool):
+                raise ValueError(f"Invalid bias value {bool}")
             if filters is None:
                 filters = x.shape[-1]
-            if mode == "tensorflow":
-                return ConvND(filters=filters, strides=stride, kernel_size=kernel_size, dilation_rate=dilation_rate, groups=groups, use_bias=bias, padding="SAME", name=name)(x)
-            elif mode == "pytorch":
-                x = ZeroPaddingND(get_pytorch_same_padding(len(x.get_shape()) - 2, kernel_size, dilation_rate))(x)
-                return ConvND(filters=filters, strides=stride, kernel_size=kernel_size, dilation_rate=dilation_rate, groups=groups, use_bias=bias, padding="VALID", name=name)(x)
-            else:
-                assert False
+            x, keras_padding = add_padding(x, padding=padding, kernel_size=kernel_size, dilation_rate=dilation_rate)
+            return ConvND(filters=filters, strides=stride, kernel_size=kernel_size, dilation_rate=dilation_rate, groups=groups, use_bias=bias, padding=keras_padding, name=name)(x)
         self.conv = conv
 
         if resize_align_corners:
@@ -122,27 +131,17 @@ class Config:
         else:
             self.resize = lambda x, shape, method, name=None: tf.image.resize(x, shape, method=method, name=name)
 
-        def maxpool(x, stride, kernel_size, name):
-            if mode == "tensorflow":
-                return MaxPoolND(pool_size=kernel_size, strides=stride, padding="SAME", name=name)(x)
-            elif mode == "pytorch":
-                x = ZeroPaddingND(get_pytorch_same_padding(len(x.get_shape()) - 2, kernel_size))(x)
-                return MaxPoolND(pool_size=kernel_size, strides=stride, padding="VALID", name=name)(x)
-            else:
-                assert False
-        def avgpool(x, stride, kernel_size, name):
-            if mode == "tensorflow":
-                return AveragePoolingND(pool_size=kernel_size, strides=stride, padding="SAME", name=name)(x)
-            elif mode == "pytorch":
-                x = ZeroPaddingND(get_pytorch_same_padding(len(x.get_shape()) - 2, kernel_size))(x)
-                return AveragePoolingND(pool_size=kernel_size, strides=stride, padding="VALID", name=name)(x)
-            else:
-                assert False
-        def pool(x, mode, kernel_size, stride=1, name=None):
+        def maxpool(x, stride, kernel_size, padding=self.mode, name=None):
+            x, keras_padding = add_padding(x, padding=padding, kernel_size=kernel_size)
+            return MaxPoolND(pool_size=kernel_size, strides=stride, padding=keras_padding, name=name)(x)
+        def avgpool(x, stride, kernel_size, padding=self.mode, name=None):
+            x, keras_padding = add_padding(x, padding=padding, kernel_size=kernel_size)
+            return AveragePoolingND(pool_size=kernel_size, strides=stride, padding=keras_padding, name=name)(x)
+        def pool(x, mode, kernel_size, stride=1, padding=self.mode, name=None):
             if mode.lower() == "max":
-                return maxpool(x, kernel_size=kernel_size, stride=stride, name=name)
+                return maxpool(x, kernel_size=kernel_size, stride=stride, padding=padding, name=name)
             elif mode.lower() == "avg":
-                return avgpool(x, kernel_size=kernel_size, stride=stride, name=name)
+                return avgpool(x, kernel_size=kernel_size, stride=stride, padding=padding, name=name)
             else:
                 raise ValueError(f"Invalid pooling mode {mode}")
         self.pool = pool

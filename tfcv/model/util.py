@@ -34,27 +34,40 @@ def dropout(*args, config=config.Config(), **kwargs):
     return config.dropout(*args, **kwargs)
 
 
-def conv_norm_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=False, name=None, config=config.Config()):
-    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, bias=bias, name=join(name, "conv"), config=config)
+
+def conv_norm_act(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
+    x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
     x = norm(x, name=join(name, "norm"), config=config)
     x = act(x, config=config)
     return x
 
-def conv_act(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=True, name=None, config=config.Config()):
-    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, bias=bias, name=join(name, "conv"), config=config)
+def conv_norm(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
+    x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
+    x = norm(x, name=join(name, "norm"), config=config)
+    return x
+
+def conv_act(x, *args, bias=True, name=None, config=config.Config(), **kwargs):
+    x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
     x = act(x, config=config)
     return x
 
-def norm_act_conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=False, name=None, config=config.Config()):
+def norm_act_conv(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
     x = norm(x, name=join(name, "norm"), config=config)
     x = act(x, config=config)
-    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, bias=bias, name=join(name, "conv"), config=config)
+    x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
     return x
 
-def act_conv(x, filters=None, stride=1, kernel_size=3, dilation_rate=1, groups=1, bias=False, name=None, config=config.Config()):
-    x = act(x, config=config)
-    x = conv(x, filters=filters, kernel_size=kernel_size, stride=stride, groups=groups, dilation_rate=dilation_rate, bias=bias, name=join(name, "conv"), config=config)
+def norm_conv(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
+    x = norm(x, name=join(name, "norm"), config=config)
+    x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
     return x
+
+def act_conv(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
+    x = act(x, config=config)
+    x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
+    return x
+
+
 
 def pad_to_size(x, shape, mode="center"):
     pad_width = shape - tf.shape(x)[1:-1]
