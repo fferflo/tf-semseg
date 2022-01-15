@@ -1,5 +1,6 @@
 import tensorflow as tf
 from functools import partial
+import numpy as np
 
 def join(*args):
     result = None
@@ -118,3 +119,23 @@ def get_predecessor(x, predicate):
     if len(result) == 0:
         raise ValueError("Node has no predecessor matching the given predicate")
     return result[0].output
+
+class ScaleLayer(tf.keras.layers.Layer):
+    def __init__(self, axis=-1, *args, **kwargs):
+        super(ScaleLayer, self).__init__(*args, **kwargs)
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+
+    def build(self, input_shape):
+        input_shape = input_shape[1:]
+        shape = np.ones(input_shape.rank, dtype="int32")
+        for axis in self.axis:
+            assert axis != 0
+            axis = axis - 1 if axis > 0 else axis
+            shape[axis] = input_shape[axis]
+        self.scale = self.add_weight("scale", shape=shape, initializer="zeros", trainable=True)
+
+    def call(self, x):
+        return x * self.scale[tf.newaxis, ...]

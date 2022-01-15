@@ -8,3 +8,4 @@ from . import vainf
 from . import openmmlab
 from . import deepmotionairesearch
 from . import delightcmu
+from . import facebookresearch

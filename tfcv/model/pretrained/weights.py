@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-import os, h5py
+import os, h5py, tfcv
 
 class LoadWeightsException(Exception):
     pass
@@ -115,6 +115,9 @@ def load_pth(file, model, convert_name, ignore=None, map={}):
                 set_weights(layer, key, [weights, bias])
             elif isinstance(layer, tf.keras.layers.Embedding):
                 weights = get_weight(key)[0]
+                set_weights(layer, key, [weights])
+            elif isinstance(layer, tfcv.model.util.ScaleLayer):
+                weights = get_weight(key)
                 set_weights(layer, key, [weights])
             else:
                 raise LoadWeightsException(f"Invalid type of layer {layer.name}")

@@ -1,5 +1,4 @@
 import tfcv, eval
-import tensorflow as tf
 
 def test_upernet_vitb_ade20k():
     model = tfcv.model.pretrained.openmmlab.upernet_vitb_ade20k.create()

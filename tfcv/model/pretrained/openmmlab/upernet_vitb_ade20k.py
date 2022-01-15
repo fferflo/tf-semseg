@@ -4,6 +4,7 @@ import re,  tfcv
 from ... import vit, upernet, transformer, decode
 from ...config import Config
 from ...util import *
+from .util import convert_name_upernet
 
 color_mean = np.asarray([123.675, 116.28, 103.53])
 color_std = np.asarray([58.395, 57.12, 57.375])
@@ -26,21 +27,7 @@ def convert_name(key):
     key = re.sub("^neck([0-9]*)/conv1$", lambda m: f"neck.lateral_convs.{int(m.group(1)) - 1}.conv", key)
     key = re.sub("^neck([0-9]*)/conv2$", lambda m: f"neck.convs.{int(m.group(1)) - 1}.conv", key)
 
-    key = re.sub("^head/psp/pool([0-9]*)/conv$", lambda m: f"decode_head.psp_modules.{int(m.group(1)) - 1}.1.conv", key)
-    key = re.sub("^head/psp/pool([0-9]*)/norm$", lambda m: f"decode_head.psp_modules.{int(m.group(1)) - 1}.1.bn", key)
-
-    key = re.sub("^head/initial4/conv$", lambda m: f"decode_head.bottleneck.conv", key)
-    key = re.sub("^head/initial4/norm$", lambda m: f"decode_head.bottleneck.bn", key)
-    key = re.sub("^head/initial([0-9]*)/conv$", lambda m: f"decode_head.lateral_convs.{int(m.group(1)) - 1}.conv", key)
-    key = re.sub("^head/initial([0-9]*)/norm$", lambda m: f"decode_head.lateral_convs.{int(m.group(1)) - 1}.bn", key)
-
-    key = re.sub("^head/fpn([0-9]*)/conv$", lambda m: f"decode_head.fpn_convs.{int(m.group(1)) - 1}.conv", key)
-    key = re.sub("^head/fpn([0-9]*)/norm$", lambda m: f"decode_head.fpn_convs.{int(m.group(1)) - 1}.bn", key)
-
-    key = re.sub("^head/final/conv$", lambda m: f"decode_head.fpn_bottleneck.conv", key)
-    key = re.sub("^head/final/norm$", lambda m: f"decode_head.fpn_bottleneck.bn", key)
-
-    key = re.sub("^decode/conv$", lambda m: f"decode_head.conv_seg", key)
+    key = convert_name_upernet(key)
 
     return key
 
@@ -48,13 +35,13 @@ config_ln = Config(
     mode="pytorch",
     norm=lambda x, *args, **kwargs: tf.keras.layers.LayerNormalization(*args, epsilon=1e-6, **kwargs)(x),
     act=tf.keras.activations.gelu,
-    resize_align_corners=False
+    resize_align_corners=False,
 )
 
 config_bn = Config(
     mode="pytorch",
     norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x),
-    resize_align_corners=False
+    resize_align_corners=False,
 )
 
 def create(input=None):
