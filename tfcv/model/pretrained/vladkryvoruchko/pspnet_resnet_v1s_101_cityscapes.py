@@ -1,9 +1,9 @@
 import tensorflow as tf
 import numpy as np
-import sys, re, h5py
+import sys, re, h5py, tfcv
 from ... import resnet, pspnet, decode
 from .. import weights
-from ...config import Config
+from ... import config as config_
 from ...util import *
 
 # Expects BGR input, trained for size (713, 713)
@@ -13,10 +13,9 @@ def preprocess(color):
     color = color[..., ::-1]
     return color
 
-config = Config(
-    mode="pytorch", # Same as caffe
+config = config_.CaffeConfig(
     norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x),
-    resize_align_corners=True
+    resize=config_.partial_with_default_args(config_.resize, align_corners=True),
 )
 
 def create(input=None):

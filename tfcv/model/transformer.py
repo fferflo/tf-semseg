@@ -55,7 +55,7 @@ def positional_embedding(x, train_patch_nums=None, new_patch_nums=None, has_clas
             positional_embedding = positional_embedding[:, 1:]
 
         positional_embedding = detokenize(positional_embedding, train_patch_nums)
-        positional_embedding = resize(positional_embedding, new_patch_nums, method="bicubic", config=config)
+        positional_embedding = resize(positional_embedding, new_patch_nums, method="bicubic", config=config) # TODO. bicubic should be in vit config?
         positional_embedding = tokenize(positional_embedding)
 
         if has_class_token:
@@ -114,27 +114,15 @@ def split_heads(x, heads, config=config.Config()):
         raise ValueError(f"Channel dimension {x.shape[-1]} must be divisible by number of heads {heads}")
     filters_per_head = x.shape[-1] // heads
 
-    if config.mode == "pytorch":
-        x = tf.transpose(x, (1, 0, 2)) # [tokens, batch, filters]
-        new_shape = tf.concat([tf.shape(x)[:-1], [heads, filters_per_head]], axis=0)
-        x = tf.reshape(x, new_shape) # [tokens, batch, head, filters // heads]
-        x = tf.transpose(x, (1, 2, 0, 3)) # [batch, head, tokens, filters // heads]
-    else:
-        new_shape = tf.concat([tf.shape(x)[:-1], [heads, filters_per_head]], axis=0)
-        x = tf.reshape(x, new_shape) # [batch, tokens, head, filters // heads]
-        x = tf.transpose(x, (0, 2, 1, 3)) # [batch, head, tokens, filters // heads]
+    new_shape = tf.concat([tf.shape(x)[:-1], [heads, filters_per_head]], axis=0)
+    x = tf.reshape(x, new_shape) # [batch, tokens, head, filters // heads]
+    x = tf.transpose(x, (0, 2, 1, 3)) # [batch, head, tokens, filters // heads]
     return x
 
 def merge_heads(x, config=config.Config()):
-    if config.mode == "pytorch":
-        x = tf.transpose(x, (2, 0, 1, 3)) # [tokens, batch, head, filters // heads]
-        new_shape = tf.concat([tf.shape(x)[:-2], [x.shape[-2] * x.shape[-1]]], axis=0)
-        x =  tf.reshape(x, new_shape) # [tokens, batch, filters]
-        x = tf.transpose(x, (1, 0, 2)) # [batch, tokens, filters]
-    else:
-        x = tf.transpose(x, (0, 2, 1, 3)) # [batch, tokens, head, filters // heads]
-        new_shape = tf.concat([tf.shape(x)[:-2], [x.shape[-2] * x.shape[-1]]], axis=0)
-        x =  tf.reshape(x, new_shape) # [batch, tokens, filters]
+    x = tf.transpose(x, (0, 2, 1, 3)) # [batch, tokens, head, filters // heads]
+    new_shape = tf.concat([tf.shape(x)[:-2], [x.shape[-2] * x.shape[-1]]], axis=0)
+    x =  tf.reshape(x, new_shape) # [batch, tokens, filters]
     return x
 
 def multihead_attention(query, key, value, heads=1, name=None, config=config.Config()):

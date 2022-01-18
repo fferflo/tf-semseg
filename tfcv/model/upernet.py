@@ -19,4 +19,6 @@ def head(xs, filters=512, psp_bin_sizes=[1, 2, 3, 6], name=None, config=config.C
     x = tf.concat(xs, axis=-1)
     x = conv_norm_act(x, filters=filters, kernel_size=3, stride=1, name=join(name, f"final"), config=config)
 
+    x = set_name(x, name=name)
+
     return x

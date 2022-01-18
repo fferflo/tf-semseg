@@ -3,7 +3,7 @@ import numpy as np
 import sys, re, os, tfcv
 from google_drive_downloader import GoogleDriveDownloader as gdd
 from ... import resnet, aspp, decode
-from ...config import Config
+from ... import config as config_
 from ...util import *
 
 color_mean = np.asarray([0.485, 0.456, 0.406])
@@ -48,10 +48,9 @@ def convert_name(key):
 
     return key
 
-config = Config(
-    mode="pytorch",
+config = config_.PytorchConfig(
     norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.99, epsilon=1e-5, **kwargs)(x),
-    resize_align_corners=False
+    resize=config_.partial_with_default_args(config_.resize, align_corners=False),
 )
 
 def create(input=None):

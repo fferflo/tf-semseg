@@ -25,13 +25,13 @@ def stem(x, type, name, config=config.Config()): # For variants, see: https://gi
 
     return x
 
-def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basic-v1", block=conv_norm_act, config=config.Config(), **kwargs):
+def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basic-v1", block=conv_norm_act, config=config.Config()):
     orig_x = x
 
     if filters is None:
         filters = x.shape[-1]
 
-    x = block(x, filters=filters, stride=stride, dilation_rate=dilation_rate, name=join(name, "1"), config=config, **kwargs)
+    x = block(x, filters=filters, stride=stride, dilation_rate=dilation_rate, name=join(name, "1"), config=config)
 
     x = conv(x, filters, kernel_size=3, stride=1, bias=False, name=join(name, "2", "conv"), config=config)
     x = norm(x, name=join(name, "2", "norm"), config=config)
@@ -41,12 +41,12 @@ def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basi
     x = act(x, config=config)
     return x
 
-def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bottleneck-v1", block=conv_norm_act, bottleneck_factor=4, config=config.Config(), **kwargs):
+def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bottleneck-v1", block=conv_norm_act, bottleneck_factor=4, config=config.Config()):
     orig_x = x
 
     x = conv_norm_act(x, filters, kernel_size=1, stride=1, name=join(name, "reduce"), config=config)
 
-    x = block(x, stride=stride, dilation_rate=dilation_rate, name=join(name, "center"), config=config, **kwargs)
+    x = block(x, stride=stride, dilation_rate=dilation_rate, name=join(name, "center"), config=config)
 
     x = conv(x, filters * bottleneck_factor, kernel_size=1, stride=1, bias=False, name=join(name, "expand", "conv"), config=config)
     x = norm(x, name=join(name, "expand", "norm"), config=config)
@@ -56,7 +56,7 @@ def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bott
     x = act(x, config=config)
     return x
 
-def resnet(x, block, num_residual_units, filters, strides, dilation_rates, name=None, stem="b", config=config.Config(), **kwargs):
+def resnet(x, block, num_residual_units, filters, strides, dilation_rates, name=None, stem="b", config=config.Config()):
     if stem != None:
         x = globals()["stem"](x, stem, name=join(name, "stem_" + stem), config=config)
 
@@ -64,29 +64,17 @@ def resnet(x, block, num_residual_units, filters, strides, dilation_rates, name=
     for block_index in range(len(num_residual_units)):
         for unit_index in range(num_residual_units[block_index]):
             x = block(x,
-                    filters=filters[block_index],
-                    stride=strides[block_index] if unit_index == 0 else 1,
-                    dilation_rate=(dilation_rates[block_index - 1] if block_index > 0 else 1) if unit_index == 0 else dilation_rates[block_index],
-                    name=join(name, f"block{block_index + 1}", f"unit{unit_index + 1}"),
-                    config=config,
-                    **kwargs)
+                filters=filters[block_index],
+                stride=strides[block_index] if unit_index == 0 else 1,
+                dilation_rate=(dilation_rates[block_index - 1] if block_index > 0 else 1) if unit_index == 0 else dilation_rates[block_index],
+                name=join(name, f"block{block_index + 1}", f"unit{unit_index + 1}"),
+                config=config,
+            )
         x = set_name(x, join(name, f"block{block_index + 1}"))
 
     return x
 
-def strides_and_dilation_rates(strides, dilate):
-    if isinstance(dilate, bool):
-        dilate = [dilate, dilate, dilate, dilate]
-    dilation_rates = [1, 1, 1, 1]
-    strides = [s for s in strides]
-    for i, d in enumerate(dilate):
-        if d:
-            for j in range(i, len(dilate)):
-                dilation_rates[j] *= strides[i]
-            strides[i] = 1
-    return strides, dilation_rates
-
-def resnet_v1_50(x, block=bottleneck_block_v1, name="resnet_v1_50", stem="b", strides=[1, 2, 2, 2], dilate=False, **kwargs):
+def resnet_v1_50(x, block=bottleneck_block_v1, name="resnet_v1_50", stem="b", strides=[1, 2, 2, 2], dilate=False, config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     x = resnet(x,
         block=block,
@@ -96,10 +84,11 @@ def resnet_v1_50(x, block=bottleneck_block_v1, name="resnet_v1_50", stem="b", st
         strides=strides,
         stem=stem,
         name=name,
-        **kwargs)
+        config=config,
+    )
     return x
 
-def resnet_v1_101(x, block=bottleneck_block_v1, name="resnet_v1_101", stem="b", strides=[1, 2, 2, 2], dilate=False, **kwargs):
+def resnet_v1_101(x, block=bottleneck_block_v1, name="resnet_v1_101", stem="b", strides=[1, 2, 2, 2], dilate=False, config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     x = resnet(x,
         block=block,
@@ -109,10 +98,11 @@ def resnet_v1_101(x, block=bottleneck_block_v1, name="resnet_v1_101", stem="b", 
         strides=strides,
         stem=stem,
         name=name,
-        **kwargs)
+        config=config,
+    )
     return x
 
-def resnet_v1_152(x, block=bottleneck_block_v1, name="resnet_v1_152", stem="b", strides=[1, 2, 2, 2], dilate=False, **kwargs):
+def resnet_v1_152(x, block=bottleneck_block_v1, name="resnet_v1_152", stem="b", strides=[1, 2, 2, 2], dilate=False, config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     x = resnet(x,
         block=block,
@@ -122,5 +112,6 @@ def resnet_v1_152(x, block=bottleneck_block_v1, name="resnet_v1_152", stem="b", 
         strides=strides,
         stem=stem,
         name=name,
-        **kwargs)
+        config=config,
+    )
     return x

@@ -3,7 +3,7 @@ import tfcv, re
 from .convnext import convert_name as convert_name_convnext
 from ..openmmlab.util import convert_name_upernet
 from ... import upernet, decode
-from ...config import Config
+from ... import config as config_
 from ...util import *
 from .convnext import preprocess, config
 from functools import partial
@@ -20,10 +20,9 @@ def convert_name(name, basename=None):
         name = convert_name_upernet(name)
     return name
 
-config_bn = Config(
-    mode="pytorch",
+decoder_config = config_.PytorchConfig(
     norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x),
-    resize_align_corners=False,
+    resize=config_.partial_with_default_args(config_.resize, align_corners=False),
 )
 
 def create_x(input, convnext, url, name):
@@ -36,9 +35,9 @@ def create_x(input, convnext, url, name):
 
     xs = [get_predecessor(x, lambda name: name.endswith(f"block{i}")) for i in [1, 2, 3, 4]]
     xs = [norm(x, name=join(name, "neck", "norm", f"{i + 1}"), config=config) for i, x in enumerate(xs)]
-    x = upernet.head(xs, filters=512, psp_bin_sizes=[1, 2, 3, 6], name=join(name, "head"), config=config_bn)
+    x = upernet.head(xs, filters=512, psp_bin_sizes=[1, 2, 3, 6], name=join(name, "head"), config=decoder_config)
 
-    x = decode.decode(x, filters=150, shape=tf.shape(input)[1:-1], dropout=0.1, name=join(name, "decode"), config=config_bn)
+    x = decode.decode(x, filters=150, shape=tf.shape(input)[1:-1], dropout=0.1, name=join(name, "decode"), config=decoder_config)
     x = tf.keras.layers.Softmax()(x)
 
     model = tf.keras.Model(inputs=[input], outputs=[x])

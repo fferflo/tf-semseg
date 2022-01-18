@@ -1,7 +1,7 @@
 import tensorflow as tf
 import tfcv, re
 import numpy as np
-from ...config import Config
+from ... import config as config_
 
 color_mean = np.asarray([0.485, 0.456, 0.406])
 color_std = np.asarray([0.229, 0.224, 0.225])
@@ -25,16 +25,15 @@ def convert_name(name):
 
     def func(n):
         return 1 if n == "conv" else 0
-    name = re.sub("downsample([0-9]*)/([a-z]*)", lambda m: f"downsample_layers.{int(m.group(1))}.{func(m.group(2))}", name)
+    name = re.sub("downsample([0-9]*)/([a-z]*)", lambda m: f"downsample_layers.{int(m.group(1)) - 1}.{func(m.group(2))}", name)
 
     name = name.replace("/", ".")
 
     return name
 
-config = Config(
-    mode="pytorch",
+config = config_.PytorchConfig(
     norm=lambda x, *args, **kwargs: tf.keras.layers.LayerNormalization(*args, epsilon=1e-6, **kwargs)(x),
-    resize_align_corners=False,
+    resize=config_.partial_with_default_args(config_.resize, align_corners=False),
     act=lambda x, **kwargs: tf.keras.layers.Activation(tf.keras.activations.gelu, **kwargs)(x),
 )
 
@@ -58,10 +57,10 @@ def make_builder(variant, url):
         @staticmethod
         def create(input=None, name=f"convnext_{variant}"):
             return create_x(
-                input,
-                vars(tfcv.model.convnext)[f"convnext_{variant}"],
-                url,
-                name,
+                input=input,
+                convnext=vars(tfcv.model.convnext)[f"convnext_{variant}"],
+                url=url,
+                name=name,
             )
 
         preprocess = preprocess

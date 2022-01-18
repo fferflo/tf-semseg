@@ -1,7 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import re
-from ...config import Config
+from ... import config as config_
 
 color_mean = np.asarray([0.485, 0.456, 0.406])
 color_std = np.asarray([0.229, 0.224, 0.225])
@@ -11,10 +11,9 @@ def preprocess(color):
     color = (color - color_mean) / color_std
     return color
 
-config = Config(
-    mode="pytorch",
+config = config_.PytorchConfig(
     norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x),
-    resize_align_corners=True
+    resize=config_.partial_with_default_args(config_.resize, align_corners=True),
 )
 
 def convert_name_hrnet(key):

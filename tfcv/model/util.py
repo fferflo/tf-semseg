@@ -1,5 +1,4 @@
 import tensorflow as tf
-from functools import partial
 import numpy as np
 
 def join(*args):
@@ -22,17 +21,11 @@ def norm(*args, config=config.Config(), **kwargs):
 def act(*args, config=config.Config(), **kwargs):
     return config.act(*args, **kwargs)
 
-def resize(*args, config=config.Config(), **kwargs):
-    return config.resize(*args, **kwargs)
-
-def upsample(*args, config=config.Config(), **kwargs):
-    return config.upsample(*args, **kwargs)
-
 def pool(*args, config=config.Config(), **kwargs):
     return config.pool(*args, **kwargs)
 
-def dropout(*args, config=config.Config(), **kwargs):
-    return config.dropout(*args, **kwargs)
+def resize(*args, config=config.Config(), **kwargs):
+    return config.resize(*args, **kwargs)
 
 
 
@@ -40,33 +33,40 @@ def conv_norm_act(x, *args, bias=False, name=None, config=config.Config(), **kwa
     x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
     x = norm(x, name=join(name, "norm"), config=config)
     x = act(x, config=config)
+    x = set_name(x, name=name)
     return x
 
 def conv_norm(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
     x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
     x = norm(x, name=join(name, "norm"), config=config)
+    x = set_name(x, name=name)
     return x
 
 def conv_act(x, *args, bias=True, name=None, config=config.Config(), **kwargs):
     x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
     x = act(x, config=config)
+    x = set_name(x, name=name)
     return x
 
 def norm_act_conv(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
     x = norm(x, name=join(name, "norm"), config=config)
     x = act(x, config=config)
     x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
+    x = set_name(x, name=name)
     return x
 
 def norm_conv(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
     x = norm(x, name=join(name, "norm"), config=config)
     x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
+    x = set_name(x, name=name)
     return x
 
 def act_conv(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
     x = act(x, config=config)
     x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
+    x = set_name(x, name=name)
     return x
+
 
 
 
@@ -89,12 +89,7 @@ def pad_to_size(x, shape, mode="center"):
 
 def set_name(x, name):
     return tf.keras.layers.Lambda(lambda x: x, name=name)(x)
-
-def repeat(x, n, block, name=None, **kwargs):
-    for i in range(n):
-        x = block(x, name=join(name, str(i + 1)), **kwargs)
-    return x
-
+# TODO: put these two into name module
 def get_predecessor(x, predicate):
     done = set()
     result = []
@@ -120,7 +115,7 @@ def get_predecessor(x, predicate):
         raise ValueError("Node has no predecessor matching the given predicate")
     return result[0].output
 
-class ScaleLayer(tf.keras.layers.Layer):
+class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else
     def __init__(self, axis=-1, *args, **kwargs):
         super(ScaleLayer, self).__init__(*args, **kwargs)
         if isinstance(axis, int):
@@ -139,3 +134,15 @@ class ScaleLayer(tf.keras.layers.Layer):
 
     def call(self, x):
         return x * self.scale[tf.newaxis, ...]
+
+def strides_and_dilation_rates(strides, dilate):
+    if isinstance(dilate, bool):
+        dilate = [dilate] * len(strides)
+    dilation_rates = [1] * len(strides)
+    strides = [s for s in strides]
+    for i, d in enumerate(dilate):
+        if d:
+            for j in range(i, len(dilate)):
+                dilation_rates[j] *= strides[i]
+            strides[i] = 1
+    return strides, dilation_rates

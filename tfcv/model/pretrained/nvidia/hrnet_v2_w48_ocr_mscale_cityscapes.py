@@ -1,16 +1,15 @@
 import tensorflow as tf
 from ... import hrnet, decode, ocr, mscale
 from ...util import *
-from ...config import Config
+from ... import config as config_
 import tfcv, os, re
 from google_drive_downloader import GoogleDriveDownloader as gdd
 
 from ..hrnet.util import preprocess, convert_name_hrnet, convert_name_ocr # This model is based on hrnet_v2_w48_ocr from the hrnet package
 
-config = Config(
-    mode="pytorch",
+config = config_.PytorchConfig(
     norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x),
-    resize_align_corners=False
+    resize=config_.partial_with_default_args(config_.resize, align_corners=False),
 )
 
 def convert_name(name):

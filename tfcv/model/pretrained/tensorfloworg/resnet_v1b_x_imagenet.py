@@ -1,7 +1,7 @@
 import tensorflow as tf
 import pyunpack, os, tfcv
 import numpy as np
-from ...config import Config
+from ... import config as config_
 
 def preprocess(color):
     color = color - np.array([123.68, 116.779, 103.939])
@@ -23,7 +23,7 @@ def convert_name(name):
     name = name.replace("shortcut/norm", "bottleneck_v1/shortcut/BatchNorm")
     return name
 
-config = Config()
+config = config_.TensorflowConfig()
 
 def create_x(input, dilate, resnet_v1_x, url):
     return_model = input is None

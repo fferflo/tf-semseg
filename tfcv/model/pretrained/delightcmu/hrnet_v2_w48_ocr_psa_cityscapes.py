@@ -2,6 +2,7 @@ import tensorflow as tf
 from ... import hrnet, decode, ocr, resnet, psa, mscale
 from ...util import *
 import tfcv, os, requests, re
+from functools import partial
 
 from ..hrnet.util import preprocess, config, convert_name_hrnet, convert_name_ocr
 
@@ -88,7 +89,7 @@ def create(input=None, sequential=True):
         blocks=[resnet.bottleneck_block_v1, basic_block, basic_block, basic_block],
         num_modules=[1, 1, 4, 3],
         stem=True,
-        config=config
+        config=config,
     )
     x = ocr.ocr(x, regions=19, filters=512, filters_qkv=256, fix_bias_before_norm=False, config=config)
     x = conv_norm_act(x, filters=512, kernel_size=1, stride=1, bias=False, name=join("final"), config=config)

@@ -29,6 +29,7 @@ def interpolate_block(x, level, resize_method, filters, name=None, config=config
 
     return x
 
+# TODO: rename ppm
 def psp(x, resize_method="bilinear", filters=None, name="psp", bin_sizes=[6, 3, 2, 1], config=config.Config()):
     if filters is None:
         filters = x.shape[-1] // len(bin_sizes)

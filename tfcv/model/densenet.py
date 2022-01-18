@@ -1,5 +1,5 @@
+from . import config
 from .util import *
-from . import config, shortcut, resnet
 import tensorflow as tf
 
 def block(x, num_units, filters=48, bottleneck_factor=4, stride=1, dilation_rate=1, name="densenet-block", config=config.Config()):

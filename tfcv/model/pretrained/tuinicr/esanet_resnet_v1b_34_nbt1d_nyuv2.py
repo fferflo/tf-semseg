@@ -3,7 +3,7 @@ from ... import esanet
 from google_drive_downloader import GoogleDriveDownloader as gdd
 import os, pyunpack
 import numpy as np
-from ...config import Config
+from ... import config as config_
 import tfcv
 
 # Expects depth as mm and rgb in [0.0, 255.0]
@@ -93,9 +93,9 @@ def convert_name(key):
     key = key.replace("decoder.final", "decoder")
     return key
 
-config = Config(
-    mode="pytorch",
-    norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x)
+config = config_.PytorchConfig(
+    norm=lambda x, *args, **kwargs: tf.keras.layers.BatchNormalization(*args, momentum=0.9, epsilon=1e-5, **kwargs)(x),
+    resize=config_.partial_with_default_args(config_.resize, align_corners=False),
 )
 
 def create(input_rgb=None, input_depth=None):
