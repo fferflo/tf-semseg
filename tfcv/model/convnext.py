@@ -26,7 +26,7 @@ def block(x, filters=None, dilation_rate=1, factor=4, name="convnext-block", con
 
     return x
 
-def convnext(x, block, num_units, filters, strides, dilation_rates, skip_stride_one_downsampling=True, stem=True, name=None, config=config.Config()):
+def convnext(x, block, num_units, filters, strides, dilation_rates, stem=True, name=None, config=config.Config()):
     if stem:
         x = globals()["stem"](x, filters=filters[0], name=join(name, "stem"), config=config)
 
@@ -57,7 +57,7 @@ def convnext(x, block, num_units, filters, strides, dilation_rates, skip_stride_
 
     return x
 
-def convnext_tiny(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsampling=True, name="convnext_tiny", config=config.Config()):
+def convnext_tiny(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_tiny", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
@@ -66,13 +66,12 @@ def convnext_tiny(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsam
         filters=[96, 192, 384, 768],
         strides=strides,
         dilation_rates=dilation_rates,
-        skip_stride_one_downsampling=skip_stride_one_downsampling,
         stem=True,
         name=name,
         config=config,
     )
 
-def convnext_small(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsampling=True, name="convnext_small", config=config.Config()):
+def convnext_small(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_small", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
@@ -81,13 +80,12 @@ def convnext_small(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsa
         filters=[96, 192, 384, 768],
         strides=strides,
         dilation_rates=dilation_rates,
-        skip_stride_one_downsampling=skip_stride_one_downsampling,
         stem=True,
         name=name,
         config=config,
     )
 
-def convnext_base(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsampling=True, name="convnext_base", config=config.Config()):
+def convnext_base(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_base", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
@@ -96,13 +94,12 @@ def convnext_base(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsam
         filters=[128, 256, 512, 1024],
         strides=strides,
         dilation_rates=dilation_rates,
-        skip_stride_one_downsampling=skip_stride_one_downsampling,
         stem=True,
         name=name,
         config=config,
     )
 
-def convnext_large(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsampling=True, name="convnext_large", config=config.Config()):
+def convnext_large(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_large", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
@@ -111,13 +108,12 @@ def convnext_large(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsa
         filters=[192, 384, 768, 1536],
         strides=strides,
         dilation_rates=dilation_rates,
-        skip_stride_one_downsampling=skip_stride_one_downsampling,
         stem=True,
         name=name,
         config=config,
     )
 
-def convnext_xlarge(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downsampling=True, name="convnext_xlarge", config=config.Config()):
+def convnext_xlarge(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_xlarge", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
@@ -126,7 +122,6 @@ def convnext_xlarge(x, strides=[1, 2, 2, 2], dilate=False, skip_stride_one_downs
         filters=[256, 512, 1024, 2048],
         strides=strides,
         dilation_rates=dilation_rates,
-        skip_stride_one_downsampling=skip_stride_one_downsampling,
         stem=True,
         name=name,
         config=config,
