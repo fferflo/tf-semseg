@@ -1,6 +1,7 @@
 import tensorflow as tf
 from .util import *
-from . import config, shortcut
+from . import config, resnet, stochasticdepth
+from functools import partial
 
 def tokenize(x):
     return tf.reshape(x, tf.stack([tf.shape(x)[0], tf.math.reduce_prod(tf.shape(x)[1:-1]), x.shape[-1]], axis=0))
@@ -8,7 +9,9 @@ def tokenize(x):
 def detokenize(x, shape):
     return tf.reshape(x, tf.concat([tf.shape(x)[:1], shape, [x.shape[-1]]], axis=0))
 
-def encode(x, filters=None, mlp_filters=None, mlp_layers=2, heads=1, qkv_bias=True, name=None, config=config.Config()):
+shortcut = partial(stochasticdepth.shortcut, drop_probability=0.0, scale_at_train_time=True)
+
+def encode(x, filters=None, mlp_filters=None, shortcut=shortcut, mlp_layers=2, heads=1, qkv_bias=True, name=None, config=config.Config()):
     if mlp_layers < 2:
         raise ValueError(f"Must have at least 2 MLP layers, got {mlp_layers}")
     if filters is None:
@@ -23,7 +26,7 @@ def encode(x, filters=None, mlp_filters=None, mlp_layers=2, heads=1, qkv_bias=Tr
     query, key, value = tf.split(x, num_or_size_splits=3, axis=-1)
     x = multihead_attention(query, key, value, heads=heads, name=join(name, "mha"), config=config)
     x = conv(x, filters=filters, kernel_size=1, stride=1, bias=qkv_bias, name=join(name, "mha", "out_proj"), config=config)
-    x = shortcut.add(x, x_orig, name=join(name, "mha", "shortcut")) # TODO: x = tfa.layers.StochasticDepth()([x_orig, x]) as shortcut
+    x = shortcut(x_orig, x, name=join(name, "mha", "shortcut"), config=config)
 
     # MLP
     x_orig = x
@@ -33,7 +36,7 @@ def encode(x, filters=None, mlp_filters=None, mlp_layers=2, heads=1, qkv_bias=Tr
         if i < mlp_layers - 1:
             x = act(x, config=config)
         # x = tf.keras.layers.Dropout(0.1)(x) # TODO: dropout
-    x = shortcut.add(x, x_orig, name=join(name, "mlp", "shortcut")) # TODO: x = tfa.layers.StochasticDepth()([x_orig, x]) as shortcut
+    x = shortcut(x_orig, x, name=join(name, "mlp", "shortcut"), config=config)
 
     return x
 

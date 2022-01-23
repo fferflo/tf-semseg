@@ -1,7 +1,15 @@
 import tensorflow as tf
-from . import config, shortcut
+from . import config
 
-def unet(x, filters, num_encode_units, num_decode_units, encode, decode, neck=None, shortcut=shortcut.concat, name="unet", config=config.Config()):
+def shortcut(dest, src, stride=1, activation=True, name=None, config=config.Config()):
+    if stride > 1:
+        src = conv_norm(src, kernel_size=1, stride=stride, bias=False, name=name, config=config)
+        if activation:
+            src = act(src, config=config)
+
+    return tf.concat([dest, src], axis=-1)
+
+def unet(x, filters, num_encode_units, num_decode_units, encode, decode, neck=None, name="unet", config=config.Config()):
     levels = len(num_encode_units)
     if not isinstance(encode, list):
         encode = [encode] * levels

@@ -4,7 +4,15 @@ import tensorflow as tf
 import numpy as np
 import sys
 from .util import *
-from . import config, shortcut
+from . import config
+
+def shortcut(shortcut, residual, stride=1, activation=False, name=None, config=config.Config()):
+    if shortcut.shape[-1] != residual.shape[-1] or stride > 1:
+        shortcut = conv_norm(shortcut, residual.shape[-1], kernel_size=1, stride=stride, bias=False, name=name, config=config)
+        if activation:
+            shortcut = act(shortcut, config=config)
+
+    return shortcut + residual
 
 def stem(x, type, name, config=config.Config()): # For variants, see: https://github.com/rwightman/pytorch-image-models/blob/master/timm/models/resnet.py#L482
     if type == "b":
@@ -36,7 +44,7 @@ def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basi
     x = conv(x, filters, kernel_size=3, stride=1, bias=False, name=join(name, "2", "conv"), config=config)
     x = norm(x, name=join(name, "2", "norm"), config=config)
 
-    x = shortcut.add(x, orig_x, stride=stride, activation=False, name=join(name, "shortcut"), config=config)
+    x = shortcut(orig_x, x, stride=stride, name=join(name, "shortcut"), config=config)
     # TODO: dropout?
     x = act(x, config=config)
     return x
@@ -51,7 +59,7 @@ def bottleneck_block_v1(x, filters, stride=1, dilation_rate=1, name="resnet-bott
     x = conv(x, filters * bottleneck_factor, kernel_size=1, stride=1, bias=False, name=join(name, "expand", "conv"), config=config)
     x = norm(x, name=join(name, "expand", "norm"), config=config)
 
-    x = shortcut.add(x, orig_x, stride=stride, activation=False, name=join(name, "shortcut"), config=config)
+    x = shortcut(orig_x, x, stride=stride, name=join(name, "shortcut"), config=config)
     # TODO: dropout?
     x = act(x, config=config)
     return x

@@ -1,6 +1,6 @@
 import tensorflow as tf
 import numpy as np
-from . import config, shortcut
+from . import config, stochasticdepth
 from .util import *
 from functools import partial
 
@@ -8,7 +8,9 @@ def stem(x, filters, name=None, config=config.Config()):
     x = conv_norm(x, filters=filters, kernel_size=4, stride=4, bias=True, padding=0, name=name, config=config)
     return x
 
-def block(x, filters=None, dilation_rate=1, factor=4, name="convnext-block", config=config.Config()):
+shortcut = partial(stochasticdepth.shortcut, drop_probability=0.0, scale_at_train_time=True)
+
+def block(x, filters=None, dilation_rate=1, factor=4, shortcut=shortcut, name="convnext-block", config=config.Config()):
     orig_x = x
 
     if filters is None:
@@ -22,7 +24,7 @@ def block(x, filters=None, dilation_rate=1, factor=4, name="convnext-block", con
 
     x = ScaleLayer(name=join(name, "scale"))(x)
 
-    x = shortcut.add(x, orig_x, stride=1, activation=False, name=join(name, "shortcut"), config=config) # TODO: tfa.layers.StochasticDepth()([x_orig, x])
+    x = shortcut(orig_x, x, name=join(name, "shortcut"), config=config)
 
     return x
 
@@ -57,11 +59,11 @@ def convnext(x, block, num_units, filters, strides, dilation_rates, stem=True, n
 
     return x
 
-def convnext_tiny(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_tiny", config=config.Config()):
+def convnext_tiny(x, block=partial(block, factor=4), strides=[1, 2, 2, 2], dilate=False, name="convnext_tiny", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
-        block=partial(block, factor=4),
+        block=block,
         num_units=[3, 3, 9, 3],
         filters=[96, 192, 384, 768],
         strides=strides,
@@ -71,11 +73,11 @@ def convnext_tiny(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_tiny", c
         config=config,
     )
 
-def convnext_small(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_small", config=config.Config()):
+def convnext_small(x, block=partial(block, factor=4), strides=[1, 2, 2, 2], dilate=False, name="convnext_small", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
-        block=partial(block, factor=4),
+        block=block,
         num_units=[3, 3, 27, 3],
         filters=[96, 192, 384, 768],
         strides=strides,
@@ -85,11 +87,11 @@ def convnext_small(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_small",
         config=config,
     )
 
-def convnext_base(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_base", config=config.Config()):
+def convnext_base(x, block=partial(block, factor=4), strides=[1, 2, 2, 2], dilate=False, name="convnext_base", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
-        block=partial(block, factor=4),
+        block=block,
         num_units=[3, 3, 27, 3],
         filters=[128, 256, 512, 1024],
         strides=strides,
@@ -99,11 +101,11 @@ def convnext_base(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_base", c
         config=config,
     )
 
-def convnext_large(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_large", config=config.Config()):
+def convnext_large(x, block=partial(block, factor=4), strides=[1, 2, 2, 2], dilate=False, name="convnext_large", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
-        block=partial(block, factor=4),
+        block=block,
         num_units=[3, 3, 27, 3],
         filters=[192, 384, 768, 1536],
         strides=strides,
@@ -113,11 +115,11 @@ def convnext_large(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_large",
         config=config,
     )
 
-def convnext_xlarge(x, strides=[1, 2, 2, 2], dilate=False, name="convnext_xlarge", config=config.Config()):
+def convnext_xlarge(x, block=partial(block, factor=4), strides=[1, 2, 2, 2], dilate=False, name="convnext_xlarge", config=config.Config()):
     strides, dilation_rates = strides_and_dilation_rates(strides, dilate)
     return convnext(
         x,
-        block=partial(block, factor=4),
+        block=block,
         num_units=[3, 3, 27, 3],
         filters=[256, 512, 1024, 2048],
         strides=strides,

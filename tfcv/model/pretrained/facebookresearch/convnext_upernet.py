@@ -2,7 +2,7 @@ import tensorflow as tf
 import tfcv, re
 from .convnext import convert_name as convert_name_convnext
 from ..openmmlab.util import convert_name_upernet
-from ... import upernet, decode
+from ... import upernet, decode, stochasticdepth, convnext
 from ... import config as config_
 from ...util import *
 from .convnext import preprocess, config
@@ -25,13 +25,16 @@ decoder_config = config_.PytorchConfig(
     resize=config_.partial_with_default_args(config_.resize, align_corners=False),
 )
 
-def create_x(input, convnext, url, name):
+def create_x(input, convnext_variant, url, drop_probability=0.0, name=None):
     return_model = input is None
     if input is None:
         input = tf.keras.layers.Input((None, None, 3))
 
     x = input
-    x = convnext(x, name=join(name, "convnext"), config=config) # TODO: fix all pretrained model construction methods to take basename argument
+
+    shortcut = partial(stochasticdepth.shortcut, drop_probability=drop_probability, scale_at_train_time=True)
+    block = partial(convnext.block, shortcut=shortcut, factor=4)
+    x = convnext_variant(x, block=block, name=join(name, "convnext"), config=config) # TODO: fix all pretrained model construction methods to take basename argument
 
     xs = [get_predecessor(x, lambda name: name.endswith(f"block{i}")) for i in [1, 2, 3, 4]]
     xs = [norm(x, name=join(name, "neck", "norm", f"{i + 1}"), config=config) for i, x in enumerate(xs)]
@@ -50,12 +53,13 @@ def create_x(input, convnext, url, name):
 def make_builder(variant, url):
     class builder:
         @staticmethod
-        def create(input=None, name=f"convnext_{variant}_upernet"):
+        def create(input=None, drop_probability=0.0, name=f"convnext_{variant}_upernet"):
             return create_x(
-                input,
-                vars(tfcv.model.convnext)[f"convnext_{variant}"],
-                url,
-                name,
+                input=input,
+                convnext_variant=vars(convnext)[f"convnext_{variant}"],
+                url=url,
+                drop_probability=drop_probability,
+                name=name,
             )
 
         preprocess = preprocess

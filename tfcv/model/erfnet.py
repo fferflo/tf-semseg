@@ -1,6 +1,6 @@
 import tensorflow as tf
 from .util import *
-from . import config, shortcut
+from . import config, resnet
 
 def non_bottleneck_block_1d(x, filters=None, stride=1, dilation_rate=1, name="non-bottleneck-1d", config=config.Config()):
     orig_x = x
@@ -29,7 +29,7 @@ def non_bottleneck_block_1d(x, filters=None, stride=1, dilation_rate=1, name="no
         if dim == dims - 1:
             x = norm(x, name=join(name, "2", "norm"), config=config)
             # TODO: dropout here https://github.com/Eromera/erfnet_pytorch/blob/master/train/erfnet.py#L25
-            x = shortcut.add(x, orig_x, stride=stride, activation=False, name=join(name, "shortcut"), config=config)
+            x = resnet.shortcut(orig_x, x, stride=stride, name=join(name, "shortcut"), config=config)
         x = act(x, config=config)
 
     return x

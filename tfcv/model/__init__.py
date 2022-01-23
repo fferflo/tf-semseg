@@ -2,7 +2,7 @@ from . import util
 from . import config
 from . import keras
 from . import upsample
-
+from . import stochasticdepth
 from . import resnet
 from . import res2net
 from . import decode

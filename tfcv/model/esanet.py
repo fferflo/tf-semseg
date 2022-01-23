@@ -1,6 +1,6 @@
 import tensorflow as tf
 from .util import *
-from . import erfnet, config, senet, pspnet, shortcut
+from . import erfnet, config, senet, pspnet, resnet
 import tfcv
 
 def stem(rgb, depth, se_reduction=16, name=None, config=config.Config()):
@@ -68,7 +68,7 @@ def esanet(rgb, depth, classes, num_residual_units, filters, dilation_rates, str
         for unit_index in range(num_decoder_units[block_index]):
             x = block(x, name=join(name, "decode", f"block{block_index + 1}", f"unit{unit_index + 1}"), config=config)
         x = upsample(x, stride=2, name=join(name, "decode", f"block{block_index + 1}", "upsample"), config=config)
-        x = shortcut.add(x, encoder_blocks[-(block_index + 2)], name=join(name, "decode", f"block{block_index + 1}", "shortcut"), config=config)
+        x = resnet.shortcut(encoder_blocks[-(block_index + 2)], x, activation=True, name=join(name, "decode", f"block{block_index + 1}", "shortcut"), config=config)
 
     x = conv(x, classes, kernel_size=3, name=join(name, "decode", "final", "conv"), bias=True, config=config) # TODO: this should be initialized differently for training: https://github.com/TUI-NICR/ESANet/blob/56b7aff77e3fc05ce4ffe55142dc805b07956f22/src/models/model.py#L385
     x = upsample(x, stride=2, name=join(name, "decode", "final", "upsample1"), config=config)

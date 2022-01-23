@@ -1,7 +1,9 @@
 import tensorflow as tf
 import tfcv, re
 import numpy as np
+from ... import stochasticdepth, convnext
 from ... import config as config_
+from functools import partial
 
 color_mean = np.asarray([0.485, 0.456, 0.406])
 color_std = np.asarray([0.229, 0.224, 0.225])
@@ -37,13 +39,16 @@ config = config_.PytorchConfig(
     act=lambda x, **kwargs: tf.keras.layers.Activation(tf.keras.activations.gelu, **kwargs)(x),
 )
 
-def create_x(input, convnext, url, name):
+def create_x(input, convnext_variant, url, drop_probability=0.0, name=None):
     return_model = input is None
     if input is None:
         input = tf.keras.layers.Input((None, None, 3))
 
     x = input
-    x = convnext(x, name=name, config=config)
+
+    shortcut = partial(stochasticdepth.shortcut, drop_probability=drop_probability, scale_at_train_time=True)
+    block = partial(convnext.block, shortcut=shortcut, factor=4)
+    x = convnext_variant(x, block=block, name=name, config=config)
 
     model = tf.keras.Model(inputs=[input], outputs=[x])
 
@@ -55,11 +60,12 @@ def create_x(input, convnext, url, name):
 def make_builder(variant, url):
     class builder:
         @staticmethod
-        def create(input=None, name=f"convnext_{variant}"):
+        def create(input=None, drop_probability=0.0, name=f"convnext_{variant}"):
             return create_x(
                 input=input,
-                convnext=vars(tfcv.model.convnext)[f"convnext_{variant}"],
+                convnext_variant=vars(convnext)[f"convnext_{variant}"],
                 url=url,
+                drop_probability=drop_probability,
                 name=name,
             )
 

@@ -1,7 +1,7 @@
 import tensorflow as tf
 import numpy as np
 import re,  tfcv
-from ... import vit, upernet, transformer, decode
+from ... import vit, upernet, transformer, decode, stochasticdepth
 from ... import config as config_
 from ...util import *
 from .util import convert_name_upernet
@@ -43,13 +43,21 @@ decoder_config = config_.PytorchConfig(
     resize=config_.partial_with_default_args(config_.resize, align_corners=False),
 )
 
-def create(input=None):
+def create(input=None, drop_probability=0.0):
     return_model = input is None
     if input is None:
         input = tf.keras.layers.Input((None, None, 3))
 
     x = input
-    vit_block = partial(transformer.encode, filters=768, mlp_filters=4 * 768, mlp_layers=2, heads=12, qkv_bias=True)
+    vit_block = partial(
+        transformer.encode,
+        filters=768,
+        mlp_filters=4 * 768,
+        mlp_layers=2,
+        heads=12,
+        qkv_bias=True,
+        shortcut=partial(stochasticdepth.shortcut, drop_probability=drop_probability, scale_at_train_time=True),
+    )
     x, patch_nums = vit.vit(x, window_size=16, filters=768, num_blocks=12, block=vit_block, pad_mode="back",
             positional_embedding_patch_nums=[32, 32], name="vit", config=encoder_config)
 
