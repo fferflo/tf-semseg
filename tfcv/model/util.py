@@ -115,9 +115,12 @@ def get_predecessor(x, predicate):
         raise ValueError("Node has no predecessor matching the given predicate")
     return result[0].output
 
+
+# https://arxiv.org/pdf/2103.17239.pdf
 class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else
-    def __init__(self, axis=-1, *args, **kwargs):
+    def __init__(self, initial_value=1e-6, axis=-1, *args, **kwargs):
         super(ScaleLayer, self).__init__(*args, **kwargs)
+        self.initial_value = initial_value
         if isinstance(axis, int):
             self.axis = [axis]
         else:
@@ -131,6 +134,11 @@ class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else
             axis = axis - 1 if axis > 0 else axis
             shape[axis] = input_shape[axis]
         self.scale = self.add_weight("scale", shape=shape, initializer="zeros", trainable=True)
+        initial_value = tf.cast(self.initial_value, self.scale.dtype)
+        while len(initial_value.shape) < len(self.scale.shape): # TODO: tfcv util function for this type of broadcasting
+            initial_value = initial_value[tf.newaxis]
+        initial_value = tf.broadcast_to(initial_value, tf.shape(self.scale))
+        self.scale.assign(initial_value)
 
     def call(self, x):
         return x * self.scale[tf.newaxis, ...]
