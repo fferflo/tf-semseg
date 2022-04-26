@@ -2,21 +2,23 @@ import tensorflow as tf
 
 def ConvND(*args, **kwargs):
     def constructor(x):
-        if len(x.get_shape()) == 3:
+        if len(x.get_shape()) == 2:
+            return tf.keras.layers.Conv1D(*args, **kwargs)(x[:, tf.newaxis])[:, 0] # TODO: replace with dense layer?
+        elif len(x.get_shape()) == 3:
             return tf.keras.layers.Conv1D(*args, **kwargs)(x)
         elif len(x.get_shape()) == 4:
             return tf.keras.layers.Conv2D(*args, **kwargs)(x)
         elif len(x.get_shape()) == 5:
             return tf.keras.layers.Conv3D(*args, **kwargs)(x)
-        elif len(x.get_shape()) == 2:
-            return tf.keras.layers.Conv1D(*args, **kwargs)(x[:, tf.newaxis])[:, 0] # TODO: replace with dense layer?
         else:
             raise ValueError(f"Unsupported number of dimensions {len(x.get_shape())}")
     return constructor
 
 def ZeroPaddingND(padding, *args, **kwargs):
     def constructor(x):
-        if len(x.get_shape()) == 3:
+        if len(x.get_shape()) == 2:
+            return x
+        elif len(x.get_shape()) == 3:
             keras_padding = padding
             if isinstance(keras_padding, tuple):
                 keras_padding = keras_padding[0]

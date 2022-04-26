@@ -1,5 +1,5 @@
 import tensorflow as tf
-from . import config
+from . import config, einops
 from .util import *
 
 def squeeze_excite_channel(x, reduction, filters=None, name="squeeze_excite_channel", config=config.Config()):
@@ -7,11 +7,11 @@ def squeeze_excite_channel(x, reduction, filters=None, name="squeeze_excite_chan
     if filters is None:
         filters = x.shape[-1]
 
-    x = tf.reduce_mean(x, axis=list(range(len(x.shape)))[1:-1], keepdims=True)
+    x = einops.apply("b s... f -> b 1... f", x, output_ndims=len(x.shape), reduction="mean")
     x = conv(x, filters // reduction, kernel_size=1, bias=True, name=join(name, "conv1"), config=config)
     x = act(x, config=config)
     x = conv(x, filters, kernel_size=1, bias=True, name=join(name, "conv2"), config=config)
-    x = tf.keras.layers.Activation("sigmoid")(x)
+    x = tf.math.sigmoid(x)
 
     x = x_orig * x
     return x
@@ -20,7 +20,7 @@ def squeeze_excite_spatial(x, name="squeeze_excite_spatial", config=config.Confi
     x_orig = x
 
     x = conv(x, 1, kernel_size=1, bias=True, name=join(name, "conv"), config=config)
-    x = tf.keras.layers.Activation("sigmoid")(x)
+    x = tf.math.sigmoid(x)
 
     x = x_orig * x
     return x

@@ -1,5 +1,6 @@
 from . import util
 from . import config
+from . import einops
 from . import keras
 from . import upsample
 from . import stochasticdepth

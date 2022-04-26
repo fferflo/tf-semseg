@@ -20,7 +20,7 @@ def decode(x, filters, shape=None, stride=None, dropout=None, name="decode", ups
 
         if upsample == "bilinear":
             x = conv(x, filters, kernel_size=1, stride=1, bias=bias, name=join(name, "conv"), config=config)
-            x = resize(x, shape, method="bilinear", config=config)
+            x = resize(x, shape, method="bilinear", name=join(name, "resize"), config=config)
         elif upsample == "subpixel":
             if stride[0] != stride[1]:
                 raise ValueError("Subpixel upsample method can only be used with equal strides per dimension")

@@ -1,50 +1,31 @@
 import tensorflow as tf
-from . import config, transformer, resnet
+from . import config, transformer, resnet, einops
 from .util import *
 
-def spatial_softmax_pool(value, query=None):
-    if query is None:
-        query = value
-    # query: # [batch, dims..., filters_q]
-    # value: # [batch, dims..., filters_v]
+def spatial_softmax_pool(weight, value):
+    weight = tf.keras.activations.softmax(weight, axis=list(range(len(weight.shape)))[1:-1])
+    return einops.apply("b s... fq, b s... fv -> b fq fv", weight, value)
 
-    query = transformer.tokenize(query) # [batch, dims, filters_q]
-    query = tf.nn.softmax(query, axis=1)
+def spatial_avg_pool(x):
+    return einops.apply("b s... f -> b 1... f", x, output_ndims=len(x.shape), reduction="mean")
 
-    value = transformer.tokenize(value) # [batch, dims, filters_v]
+def channel_softmax_pool(weight, value):
+    weight = tf.keras.activations.softmax(weight, axis=-1)
+    return einops.apply("b s... f, b 1... f -> b s... 1", weight, value)
 
-    x = tf.linalg.matmul(query, value, transpose_a=True) # [batch, filters_q, filters_v]
-
-    return x
-
-def channel_softmax_pool(value, query=None):
-    if query is None:
-        query = value
-    # query: # [batch, dims..., filters]
-    # value: # [batch, 1..., filters]
-
-    query = transformer.tokenize(query) # [batch, dims, filters]
-    query = tf.nn.softmax(query, axis=-1)
-
-    value = transformer.tokenize(value) # [batch, 1, filters]
-
-    x = tf.linalg.matmul(query, value, transpose_b=True) # [batch, dims, 1]
-
-    return x
 
 
 
 def spatial_attention(x, sequential, reduction=4, fix_bias=True, filters=None, name="spatial_attention", config=config.Config()):
-    x_orig = x
     if filters is None:
         filters = x.shape[-1]
     filters_intermediate = filters // 2
 
     weights = spatial_softmax_pool(
-        query=conv(x, 1, kernel_size=1, bias=False, name=join(name, "query", "conv"), config=config), # [batch, dims..., 1]
+        weight=conv(x, 1, kernel_size=1, bias=False, name=join(name, "query", "conv"), config=config), # [batch, dims..., 1]
         value=conv(x, filters_intermediate, kernel_size=1, bias=False, name=join(name, "value", "conv"), config=config), # [batch, dims..., filters_intermediate]
     ) # [batch, 1, filters_intermediate]
-    weights = transformer.detokenize(weights, shape=[1] * (len(x.shape) - 2)) # [batch, 1..., filters_intermediate]
+    weights = einops.apply("b 1 f -> b 1... f", weights, output_ndims=len(x.shape))
 
     if sequential:
         weights = conv(weights, filters_intermediate // reduction, kernel_size=1, bias=not fix_bias, name=join(name, "weight", "1", "conv"), config=config) # [batch, 1..., channels]
@@ -59,23 +40,15 @@ def spatial_attention(x, sequential, reduction=4, fix_bias=True, filters=None, n
     x = x * weights
     return x
 
-
-
-
-def spatial_avg_pool(x):
-    return tf.reduce_mean(x, axis=list(range(len(x.shape)))[1:-1], keepdims=True)
-
 def channel_attention(x, filters=None, name="channel_attention", config=config.Config()):
-    x_orig = x
     if filters is None:
         filters = x.shape[-1]
     filters_intermediate = filters // 2
 
     weights = channel_softmax_pool(
-        query=conv(x, filters_intermediate, kernel_size=1, bias=False, name=join(name, "query", "conv"), config=config), # [batch, dims..., filters_intermediate]
+        weight=conv(x, filters_intermediate, kernel_size=1, bias=False, name=join(name, "query", "conv"), config=config), # [batch, dims..., filters_intermediate]
         value=spatial_avg_pool(conv(x, filters_intermediate, kernel_size=1, bias=False, name=join(name, "value", "conv"), config=config)) # [batch, 1..., filters_intermediate]
-    ) # [batch, dims, 1]
-    weights = transformer.detokenize(weights, shape=tf.shape(x)[1:-1]) # [batch, dims..., filters_intermediate]
+    ) # [batch, dims..., 1]
 
     weights = tf.math.sigmoid(weights)
 

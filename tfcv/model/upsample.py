@@ -25,10 +25,10 @@ def subpixel_conv(x, stride, filters=None, bias=True, name=None, config=config.C
     if filters is None:
         filters = x.shape[-1]
     x = conv(x, filters=filters * stride * stride, kernel_size=1, stride=1, bias=bias, name=join(name, "conv"), config=config)
-    x = tf.nn.depth_to_space(x, stride)
+    x = tf.nn.depth_to_space(x, stride, name=join(name, "depth_to_space"))
     return x
 
 def repeat(x, stride, name=None, config=config.Config()):
-    return tfcv.model.keras.UpSamplingND(stride)(x)
+    return tfcv.model.keras.UpSamplingND(stride, name=name)(x)
 
 # TODO: transposed convolution here

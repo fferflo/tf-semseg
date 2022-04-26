@@ -26,6 +26,7 @@ def block(x, filters=None, dilation_rate=1, factor=4, shortcut=shortcut, name="c
 
     x = shortcut(orig_x, x, name=join(name, "shortcut"), config=config)
 
+    x = set_name(x, name) # TODO: add set_name in all blocks
     return x
 
 def convnext(x, block, num_units, filters, strides, dilation_rates, stem=True, name=None, config=config.Config()):
