@@ -92,8 +92,8 @@ def set_name(x, name):
 
 # https://arxiv.org/pdf/2103.17239.pdf
 class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else
-    def __init__(self, initial_value=1e-6, axis=-1, *args, **kwargs):
-        super(ScaleLayer, self).__init__(*args, **kwargs)
+    def __init__(self, initial_value=1e-6, axis=-1, **kwargs):
+        super().__init__(**kwargs)
         self.initial_value = initial_value
         if isinstance(axis, int):
             self.axis = [axis]
@@ -102,7 +102,7 @@ class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else
 
     def build(self, input_shape):
         input_shape = input_shape[1:]
-        shape = np.ones(input_shape.rank, dtype="int32")
+        shape = np.ones(len(input_shape) if isinstance(input_shape, tuple) else input_shape.rank, dtype="int32")
         for axis in self.axis:
             assert axis != 0
             axis = axis - 1 if axis > 0 else axis
@@ -116,6 +116,12 @@ class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else
 
     def call(self, x):
         return x * self.scale[tf.newaxis, ...]
+
+    def get_config(self):
+        config = super().get_config()
+        config["initial_value"] = self.initial_value
+        config["axis"] = self.axis
+        return config
 
 def strides_and_dilation_rates(strides, dilate):
     if isinstance(dilate, bool):
