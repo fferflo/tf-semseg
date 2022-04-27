@@ -89,32 +89,6 @@ def pad_to_size(x, shape, mode="center"):
 
 def set_name(x, name):
     return tf.keras.layers.Lambda(lambda x: x, name=name)(x)
-# TODO: put these two into name module
-def get_predecessor(x, predicate):
-    done = set()
-    result = []
-    def recurse(layer):
-        if not layer.name in done:
-            if predicate(layer.name):
-                result.append(layer)
-            done.add(layer.name)
-            for node in layer.inbound_nodes:
-                try:
-                    if isinstance(node.inbound_layers, list):
-                        for layer in node.inbound_layers:
-                            recurse(layer)
-                    else:
-                        recurse(node.inbound_layers)
-                except AttributeError as e:
-                    continue
-    if "_keras_history" in vars(x):
-        recurse(x._keras_history.layer)
-    if len(result) > 1:
-        raise ValueError(f"Node has more than one predecessor matching the given predicate: {[n.name for n in result]}")
-    if len(result) == 0:
-        raise ValueError("Node has no predecessor matching the given predicate")
-    return result[0].output
-
 
 # https://arxiv.org/pdf/2103.17239.pdf
 class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else

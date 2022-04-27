@@ -61,7 +61,7 @@ def create(input=None, drop_probability=0.0):
     x, patch_nums = vit.vit(x, window_size=16, filters=768, num_blocks=12, block=vit_block, pad_mode="back",
             positional_embedding_patch_nums=[32, 32], name="vit", config=encoder_config)
 
-    xs = [get_predecessor(x, lambda name: name.endswith(f"block{i}")) for i in [3, 6, 9, 12]]
+    xs = [tfcv.model.graph.get_unique(x, pred=lambda layer: layer.name.endswith(f"block{i}")) for i in [3, 6, 9, 12]]
     xs = [vit.neck(x, patch_nums, scale=s, name=f"neck{i + 1}", config=decoder_config) for i, x, s in zip(range(4), xs, [4, 2, 1, 0.5])]
     x = upernet.head(xs, filters=512, psp_bin_sizes=[1, 2, 3, 6], name="head", config=decoder_config)
 

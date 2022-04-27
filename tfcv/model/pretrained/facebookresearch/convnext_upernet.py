@@ -36,7 +36,7 @@ def create_x(input, convnext_variant, url, drop_probability=0.0, name=None):
     block = partial(convnext.block, shortcut=shortcut, factor=4)
     x = convnext_variant(x, block=block, name=join(name, "convnext"), config=config) # TODO: fix all pretrained model construction methods to take basename argument
 
-    xs = [get_predecessor(x, lambda name: name.endswith(f"block{i}")) for i in [1, 2, 3, 4]]
+    xs = [tfcv.model.graph.get_unique(x, pred=lambda layer: layer.name.endswith(f"block{i}")) for i in [1, 2, 3, 4]]
     xs = [norm(x, name=join(name, "neck", "norm", f"{i + 1}"), config=config) for i, x in enumerate(xs)]
     x = upernet.head(xs, filters=512, psp_bin_sizes=[1, 2, 3, 6], name=join(name, "head"), config=decoder_config)
 
@@ -46,7 +46,7 @@ def create_x(input, convnext_variant, url, drop_probability=0.0, name=None):
     model = tf.keras.Model(inputs=[input], outputs=[x])
 
     weights = tf.keras.utils.get_file(url.split("/")[-1], url)
-    tfcv.model.pretrained.weights.load_pth(weights, model, partial(convert_name, basename=name), ignore=lambda n: n.startswith("auxiliary"))
+    tfcv.model.pretrained.weights.load_pth(weights, model, partial(convert_name, basename=name), ignore=lambda n: n.startswith("auxiliary") or "running" in n)
 
     return model if return_model else x
 

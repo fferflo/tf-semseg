@@ -12,15 +12,14 @@ def load_h5(file, model, convert_name, ignore=None):
         all_weights = {key: np.asarray(f[key]) for key in keys if ":" in key}
     for var in model.variables:
         key = convert_name(var.name)
-        if not key in all_weights:
-            raise LoadWeightsException(f"Variable {key} not found in {os.path.basename(file)}")
-        weights = all_weights[key]
-        if weights.shape != var.shape:
-            raise LoadWeightsException(f"Variable {key} expected shape {var.shape} but got shape {weights.shape}")
-        var.assign(weights)
-        del all_weights[key]
-    for key in list(all_weights.keys()):
-        if not ignore is None and ignore(key):
+        if ignore is None or not ignore(var.name, key):
+            if not key in all_weights:
+                raise LoadWeightsException(f"Variable {key} not found in {os.path.basename(file)}")
+            weights = all_weights[key]
+            if weights.shape != var.shape:
+                raise LoadWeightsException(f"Variable {key} expected shape {var.shape} but got shape {weights.shape}")
+            var.assign(weights)
+        if key in all_weights:
             del all_weights[key]
     keys = list(all_weights.keys())
     if len(keys) > 0:
