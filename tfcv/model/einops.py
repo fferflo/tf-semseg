@@ -82,6 +82,8 @@ class Variable:
         return [EllipsisVariable(self, ellipses, context) if len(ellipses) > 0 else self]
 
     def fill(self, values):
+        if not self.name in values:
+            raise ValueError(f"Dimension {self.name} was not deduced")
         return Value(self.name, values[self.name])
 
 class EllipsisVariable:
@@ -101,6 +103,8 @@ class EllipsisVariable:
         return np.asarray([d for _, d, _ in self.ellipses])
 
     def fill(self, values):
+        if not self.name in values:
+            raise ValueError(f"Dimension {self.name} was not deduced")
         return Value(self.name, values[self.name])
 
 class Ellipsis:
@@ -205,8 +209,13 @@ def parse_desc(desc, context, ellipses=[], root=True):
     return result
 
 cache = {}
+# TODO: @tf.autograph.experimental.do_not_convert
 def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, keepdims=False, **constants):
     tensors = list(tensors)
+    for i in range(len(tensors)):
+        if not tf.is_tensor(tensors[i]) and not isinstance(tensors[i], np.ndarray):
+            tensors[i] = tf.convert_to_tensor(tensors[i])
+
     input_shapes = []
     for tensor in tensors:
         tf_input_shape = None
@@ -261,7 +270,12 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             if not variable.value is None:
                 result.append((f"__constantdim-{variable.name}", variable, variable.value))
 
-        return result
+        def map_value(x):
+            if tf.is_tensor(x):
+                return tf.cast(x, "int64")
+            else:
+                return x
+        return [(a, b, map_value(c)) for a, b, c in result]
 
     cache_key = (
         tuple(len(input_shape) for input_shape in input_shapes),
@@ -321,6 +335,8 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
         # Constants
         name_to_any_variable = {v.name: v for v in all_nodes if isinstance(v, Variable)}
         for name, value in constants.items():
+            if name not in name_to_any_variable:
+                raise ValueError(f"Variable {name} not in description string")
             ellipses = name_to_any_variable[name].ellipses
             expected_rank = len(name_to_any_variable[name].ellipses)
             def get_shape(value):
@@ -360,6 +376,10 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
         descs = [desc.expand(context, expansion_values) for desc in descs]
         descs_in = descs[:-1]
         desc_out = descs[-1]
+
+        for i in range(len(descs_in)):
+            if len(descs_in[i].children) != len(input_shapes[i]):
+                raise ValueError(f"Expected input tensor at index {i} to have {len(descs_in[i].children)} dimensions, got {len(input_shapes[i])}")
 
         # ########################### Find dimension values ###########################
         variable_names = [set(v.name for v in desc.get_all() if isinstance(v, Variable) or isinstance(v, EllipsisVariable)) for desc in descs]
@@ -448,25 +468,32 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             tensors[i] = tf.reshape(tensors[i], shape)
 
     # Reduce and squeeze input dimensions
+    any_reduced = False
     for i in range(len(tensors)):
-        reduced_names = [name for name in variable_names[i] if not any(name in variable_names[j] for j in range(len(descs)) if i != j)]
+        reduced_names = [name for name in variable_names[i] if all((not name in variable_names[j] or i == j) for j in range(len(descs)))]
         reduced_len1_names = set(name for name in reduced_names if inferred_value(variable_values[name]) == 1)
         if len(reduced_names) - len(reduced_len1_names) > 0 and reduction is None:
             raise ValueError("Expected reduction argument")
-        if len(reduced_names) == 0 and not reduction is None:
-            raise ValueError("No dimensions are reduced, but got reduction argument")
+
         if len(reduced_names) > 0:
+            any_reduced = True
+
             shape = [v for v, name in zip(in_ordered_values[i], in_ordered_names[i]) if not name in reduced_len1_names]
             if len(shape) != len(tensors[i].shape):
                 tensors[i] = tf.reshape(tensors[i], shape)
 
             axes = sorted([in_ordered_names[i].index(name) for name in reduced_names if not name in reduced_len1_names])
             if len(axes) > 0:
-                tf_reduce_name = f"reduce_{reduction}"
-                if tf_reduce_name in vars(tf):
-                    tensors[i] = vars(tf)[tf_reduce_name](tensors[i], axis=axes)
+                if reduction == "count_nonzero":
+                    tensors[i] = tf.math.count_nonzero(tensors[i], axis=axes)
                 else:
-                    raise ValueError(f"Invalid reduction argument {reduction}")
+                    tf_reduce_name = f"reduce_{reduction}"
+                    if tf_reduce_name in vars(tf):
+                        tensors[i] = vars(tf)[tf_reduce_name](tensors[i], axis=axes)
+                    else:
+                        raise ValueError(f"Invalid reduction argument {reduction}")
+    if not any_reduced and not reduction is None:
+        raise ValueError("No dimensions are reduced, but got reduction argument")
     # Transform to flat output
     if len(descs_in) == 1:
         # Use tf.transpose for single inputs
@@ -506,15 +533,19 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             elif i == len(ordered_names) - 2:
                 einsum_str += " -> "
 
-        output_tensor = tf.einsum(einsum_str, *tensors, optimize="optimal")
+        # Bugfix https://github.com/keras-team/keras/issues/15783
+        if any(tf.is_tensor(t) and tf.keras.backend.is_keras_tensor(t) for t in tensors):
+            output_tensor = tf.keras.layers.Lambda(lambda tensors: tf.einsum(einsum_str, *tensors, optimize="optimal"))(tensors)
+        else:
+            output_tensor = tf.einsum(einsum_str, *tensors, optimize="optimal")
 
     # Expand and broadcast missing output dimensions
     broadcasted_names = [n for n in variable_names_out if not any(n in vn for vn in variable_names_in)]
     if len(broadcasted_names) > 0:
-        slices = [(tf.newaxis if name in broadcasted_names else slice(None)) for name in out_ordered_names]
+        slices = tuple((tf.newaxis if name in broadcasted_names else slice(None)) for name in out_ordered_names)
         output_tensor = output_tensor[slices]
         if not all(inferred_value(value) == 1 for name, value in zip(out_ordered_names, out_ordered_values) if name in broadcasted_names):
-            output_tensor = tf.broadcast_to(output_tensor, out_ordered_values)
+            output_tensor = tf.broadcast_to(output_tensor, [tf.cast(v, "int32") for v in out_ordered_values])
 
     # Reshape flat output to nested output
     shape = [v.get_value() for v in desc_out.children]
