@@ -1,4 +1,4 @@
-import sympy, types, math, inspect
+import sympy, types, math, inspect, traceback
 import tensorflow as tf
 import numpy as np
 from collections import defaultdict
@@ -24,7 +24,7 @@ def split(desc):
 
     return [e.strip() for e in elements if len(e) > 0]
 
-def inferred_value(n):
+def get_inferred_value(n):
     if isinstance(n, int):
         return n
     elif "__dict__" in dir(n) and "_inferred_value" in vars(n) and not n._inferred_value is None and not n._inferred_value[0] is None:
@@ -32,13 +32,19 @@ def inferred_value(n):
     else:
         return None
 
+def assert_shape(shape, message):
+    for s in shape:
+        i = get_inferred_value(s)
+        if not i is None and i == 0:
+            assert False, message
+
 class Value:
     def __init__(self, name, value):
         self.name = name
         self.value = value
 
     def __str__(self):
-        value = inferred_value(self.value)
+        value = get_inferred_value(self.value)
         if not value is None:
             return str(value)
         else:
@@ -48,7 +54,7 @@ class Value:
         return [self]
 
     def get_value(self):
-        value = inferred_value(self.value)
+        value = get_inferred_value(self.value)
         return self.value if value is None else self.value
 
 class Variable:
@@ -210,7 +216,7 @@ def parse_desc(desc, context, ellipses=[], root=True):
 
 cache = {}
 # TODO: @tf.autograph.experimental.do_not_convert
-def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, keepdims=False, **constants):
+def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, keepdims=False, add_assertions=True, **constants):
     tensors = list(tensors)
     for i in range(len(tensors)):
         if not tf.is_tensor(tensors[i]) and not isinstance(tensors[i], np.ndarray):
@@ -244,26 +250,29 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
         # Input shape
         for i, desc_in in enumerate(descs_in):
             for j, c in enumerate(desc_in.children):
-                result.append((f"__input{i}shape{j}", c, input_shapes[i][j]))
+                result.append((f"__inputshape-{i}-{j}", c, input_shapes[i][j]))
 
         # Output shape if given
         if not output_shape is None:
             for i, c in enumerate(desc_out.children):
-                result.append((f"__outputshape{i}", c, output_shape[i]))
+                result.append((f"__outputshape-{i}", c, output_shape[i]))
 
         # Constant arguments if given
         for name, value in constants.items():
             value_broadcasted = None
+            added_names = set()
             for variable in name_to_variables[name]:
-                if isinstance(variable, EllipsisVariable):
-                    dest_shape = variable.constant_shape()
-                    if value_broadcasted is None:
-                        value_broadcasted = tf.broadcast_to(value, dest_shape)
-                    index = [int(i) for i in variable.name.split("-")[-dest_shape.shape[0]:]]
+                if not variable.name in added_names:
+                    added_names.add(variable.name)
+                    if isinstance(variable, EllipsisVariable):
+                        dest_shape = variable.constant_shape()
+                        if value_broadcasted is None:
+                            value_broadcasted = tf.broadcast_to(value, dest_shape)
+                        index = [int(i) for i in variable.name.split("-")[-dest_shape.shape[0]:]]
 
-                    result.append((f"__constantarg-{variable.name}", variable, value_broadcasted[index]))
-                else:
-                    result.append((f"__constantarg-{variable.name}", variable, value))
+                        result.append((f"__constantarg-{variable.name}", variable, value_broadcasted[index]))
+                    else:
+                        result.append((f"__constantarg-{variable.name}", variable, value))
 
         # Constant dimensions if given
         for variable in all_variables:
@@ -368,7 +377,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             if not v.is_number:
                 k = str(k)
                 if k.startswith("__ellipsis"):
-                    raise ValueError(f"Failed to deduce expansion count of ellipsis {k[10:]}")
+                    raise ValueError(f"Failed to deduce expansion count of ellipsis {k[10:]} (zero-based)")
                 else:
                     raise ValueError(f"Failed to deduce variable occurrence count of {k}")
         expansion_values = {str(k): int(v) for k, v in expansion_values.items()}
@@ -379,7 +388,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
 
         for i in range(len(descs_in)):
             if len(descs_in[i].children) != len(input_shapes[i]):
-                raise ValueError(f"Expected input tensor at index {i} to have {len(descs_in[i].children)} dimensions, got {len(input_shapes[i])}")
+                raise ValueError(f"Expected input tensor at index {i} (zero-based) to have {len(descs_in[i].children)} dimensions, got {len(input_shapes[i])}")
 
         # ########################### Find dimension values ###########################
         variable_names = [set(v.name for v in desc.get_all() if isinstance(v, Variable) or isinstance(v, EllipsisVariable)) for desc in descs]
@@ -397,7 +406,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
         equations = []
         sympy_constants = {}
         constants_values = {}
-        # remaining_assertions = []
+        remaining_assertions = []
         for sympy_constant_name, node, value in get_constants(descs_in, desc_out):
             sympy_computed_value = sympy_value(node)
             sympy_constant = sympy.Symbol(sympy_constant_name, integer=True)
@@ -405,15 +414,23 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             if len(sympy.solve(equations_try, list(sympy_variable_values.values()))) > 0:
                 equations = equations_try
                 sympy_constants[sympy_constant_name] = sympy_constant
-                constants_values[sympy_constant_name] = value
-            # else:
-            #     remaining_assertions.append((sympy_constant, sympy_computed_value, value))
+            else:
+                remaining_assertions.append((sympy_constant, sympy_computed_value))
+            constants_values[sympy_constant_name] = value
 
         # Solve symbolic
-        sympy_solved_variable_values = sympy.solve(equations, list(sympy_variable_values.values()))
+        sympy_variable_values_ordered = list(sympy_variable_values.values())
+        sympy_solved_variable_values = sympy.solve(equations, sympy_variable_values_ordered)
+        if isinstance(sympy_solved_variable_values, list):
+            assert len(sympy_solved_variable_values) == 1
+            sympy_solved_variable_values = sympy_solved_variable_values[0]
+            assert len(sympy_solved_variable_values) == len(sympy_variable_values_ordered)
+            sympy_solved_variable_values = {k: v for k, v in zip(sympy_variable_values_ordered, sympy_solved_variable_values)}
+        else:
+            assert isinstance(sympy_solved_variable_values, dict)
 
-        sympy_constants_names = list(sympy_constants.keys())
-        sympy_constants = [sympy_constants[k] for k in sympy_constants_names]
+        ordered_constant_names = list(sympy_constants.keys())
+        sympy_constants = [sympy_constants[k] for k in ordered_constant_names]
         def to_func(expr, sympy_values):
             func = sympy.lambdify(sympy_values, expr)
             source = inspect.getsource(func)
@@ -422,11 +439,23 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             exec(source, d, d)
             func = d["_lambdifygenerated"]
             return func
-        variable_funcs = {str(k): to_func(v, sympy_constants) for k, v in sympy_solved_variable_values.items()}
+        variable_funcs = {str(k): to_func(v, sympy_constants) for k, v in list(sympy_solved_variable_values.items())}
 
-        cache[cache_key] = (tuple(descs), sympy_constants_names, variable_funcs, variable_names)
+        remaining_assertions2 = []
+        ordered_variable_names = list(set(name for s in variable_names for name in s))
+        for sympy_constant, sympy_computed_value in remaining_assertions:
+            equations = [sympy.Eq(k, v) for k, v in sympy_solved_variable_values.items()] + [sympy.Eq(sympy_constant, sympy_computed_value)]
+            sympy_solved_constant_values = sympy.solve(equations, [sympy_constant])
+            assert len(sympy_solved_constant_values) == 1
+
+            func = to_func(list(sympy_solved_constant_values.values())[0], [sympy_variable_values[name] for name in ordered_variable_names])
+
+            remaining_assertions2.append((str(sympy_constant), str(sympy_computed_value), func))
+        remaining_assertions = remaining_assertions2
+
+        cache[cache_key] = (tuple(descs), ordered_constant_names, variable_funcs, variable_names, remaining_assertions, ordered_variable_names)
     else:
-        descs, sympy_constants_names, variable_funcs, variable_names = cache[cache_key]
+        descs, ordered_constant_names, variable_funcs, variable_names, remaining_assertions, ordered_variable_names = cache[cache_key]
         descs_in = descs[:-1]
         desc_out = descs[-1]
         variable_names_in = variable_names[:-1]
@@ -437,20 +466,38 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             constants_values[sympy_constant_name] = value
 
     # Compute shapes in tensorflow from solved equations
-    constants_values = [constants_values[k] for k in sympy_constants_names]
-    variable_values = {k: func(*constants_values) for k, func in variable_funcs.items()}
+    ordered_constants_values = [constants_values[k] for k in ordered_constant_names]
+    variable_values = {k: func(*ordered_constants_values) for k, func in variable_funcs.items()}
 
     descs = [desc.fill(variable_values) for desc in descs]
     descs_in = descs[:-1]
     desc_out = descs[-1]
 
-    # TODO: make assertions work in keras and tf.function
-    # sympy_variable_names = list(sympy_variable_values.keys())
-    # sympy_variables = [sympy_variable_values[k] for k in sympy_variable_names]
-    # variables = [variable_values[k] for k in sympy_variable_names]
-    # for sympy_constant, sympy_computed_value, value in remaining_assertions:
-    #     got = evaluate(sympy_computed_value, sympy_variables, variables)
-    #     tf.debugging.assert_equal(value, got, f"Assertion failed for {sympy_constant.name}. Expected {value}, got {got}")
+    ordered_variable_values = [variable_values[k] for k in ordered_variable_names]
+    for sympy_constant_name, print_name, func in remaining_assertions:
+        value = constants_values[sympy_constant_name]
+        computed_value = func(*ordered_variable_values)
+
+        inferred_value = get_inferred_value(value)
+        inferred_computed_value = get_inferred_value(computed_value)
+        if not inferred_value is None and not inferred_computed_value is None:
+            if inferred_value != inferred_computed_value:
+                raise ValueError(f"Got conflicting values for {print_name}: {inferred_value} != {inferred_computed_value}")
+        elif (tf.is_tensor(value) and tf.keras.backend.is_keras_tensor(value)) or (tf.is_tensor(computed_value) and tf.keras.backend.is_keras_tensor(computed_value)):
+            if add_assertions:
+                msg = "\n".join([l.strip() for l in traceback.format_stack()[:-1]])
+                def assertion_function(input, msg=msg):
+                    value = input[0]
+                    computed_value = input[1]
+                    tensors = input[2:]
+                    tf.debugging.assert_equal(tf.cast(value, "int64"), tf.cast(computed_value, "int64"), msg + f"\nGot conflicting values for {print_name}")
+                    return tensors
+                tensors = tf.keras.layers.Lambda(assertion_function)([value, computed_value] + tensors)
+        elif (tf.is_tensor(value) and not tf.keras.backend.is_keras_tensor(value)) or (tf.is_tensor(computed_value) and not tf.keras.backend.is_keras_tensor(computed_value)):
+            if add_assertions:
+                tf.debugging.assert_equal(tf.cast(value, "int64"), tf.cast(computed_value, "int64"), traceback.format_exc() + f"\nGot conflicting values for {print_name}")
+        else:
+            assert False
 
     # ########################### Transform tensor ###########################
     ordered_names = [[v.name for v in desc.get_ordered_values()] for desc in descs]
@@ -463,6 +510,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
     # Reshape nested input to flat input
     for i in range(len(tensors)):
         shape = in_ordered_values[i]
+        assert_shape(shape, f"Got invalid target shape for input {shape}")
         if len(shape) != len(tensors[i].shape):
             # TODO: possibly two consecutive reshapes here and in reduction
             tensors[i] = tf.reshape(tensors[i], shape)
@@ -471,7 +519,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
     any_reduced = False
     for i in range(len(tensors)):
         reduced_names = [name for name in variable_names[i] if all((not name in variable_names[j] or i == j) for j in range(len(descs)))]
-        reduced_len1_names = set(name for name in reduced_names if inferred_value(variable_values[name]) == 1)
+        reduced_len1_names = set(name for name in reduced_names if get_inferred_value(variable_values[name]) == 1)
         if len(reduced_names) - len(reduced_len1_names) > 0 and reduction is None:
             raise ValueError("Expected reduction argument")
 
@@ -479,6 +527,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             any_reduced = True
 
             shape = [v for v, name in zip(in_ordered_values[i], in_ordered_names[i]) if not name in reduced_len1_names]
+            assert_shape(shape, f"Got invalid target shape for reduction {shape}")
             if len(shape) != len(tensors[i].shape):
                 tensors[i] = tf.reshape(tensors[i], shape)
 
@@ -486,6 +535,9 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
             if len(axes) > 0:
                 if reduction == "count_nonzero":
                     tensors[i] = tf.math.count_nonzero(tensors[i], axis=axes)
+                elif reduction == "first":
+                    slices = tuple((0 if a in axes else slice(None)) for a in range(len(shape)))
+                    tensors[i] = tensors[i][slices]
                 else:
                     tf_reduce_name = f"reduce_{reduction}"
                     if tf_reduce_name in vars(tf):
@@ -494,6 +546,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
                         raise ValueError(f"Invalid reduction argument {reduction}")
     if not any_reduced and not reduction is None:
         raise ValueError("No dimensions are reduced, but got reduction argument")
+
     # Transform to flat output
     if len(descs_in) == 1:
         # Use tf.transpose for single inputs
@@ -544,11 +597,12 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
     if len(broadcasted_names) > 0:
         slices = tuple((tf.newaxis if name in broadcasted_names else slice(None)) for name in out_ordered_names)
         output_tensor = output_tensor[slices]
-        if not all(inferred_value(value) == 1 for name, value in zip(out_ordered_names, out_ordered_values) if name in broadcasted_names):
+        if not all(get_inferred_value(value) == 1 for name, value in zip(out_ordered_names, out_ordered_values) if name in broadcasted_names):
             output_tensor = tf.broadcast_to(output_tensor, [tf.cast(v, "int32") for v in out_ordered_values])
 
     # Reshape flat output to nested output
     shape = [v.get_value() for v in desc_out.children]
+    assert_shape(shape, f"Got invalid target shape for output {shape}")
     if len(shape) != len(out_ordered_values):
         output_tensor = tf.reshape(output_tensor, shape)
 
