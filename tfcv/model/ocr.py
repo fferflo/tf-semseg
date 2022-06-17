@@ -15,7 +15,7 @@ def object_attention(query, keyvalue, filters_qkv, name=None, config=config.Conf
     value = keyvalue
     value = conv_norm_act(value, filters=filters_qkv, kernel_size=1, stride=1, name=join(name, "down"), config=config)
 
-    token_features = transformer.multihead_attention(query, key, value, heads=1, config=config)
+    token_features = transformer.full_attention(query, key, value, heads=1, config=config)
 
     token_features = conv_norm_act(token_features, filters=output_filters, kernel_size=1, stride=1, name=join(name, "up"), config=config)
     return token_features

@@ -1,38 +1,7 @@
 import tensorflow as tf
 from .util import *
-from . import config, resnet, stochasticdepth, einops
+from . import config, einops
 from functools import partial
-
-shortcut = partial(stochasticdepth.shortcut, drop_probability=0.0, scale_at_train_time=True)
-
-def encode(x, filters=None, mlp_filters=None, shortcut=shortcut, mlp_layers=2, heads=1, qkv_bias=True, name=None, config=config.Config()):
-    if mlp_layers < 2:
-        raise ValueError(f"Must have at least 2 MLP layers, got {mlp_layers}")
-    if filters is None:
-        filters = x.shape[-1]
-    if mlp_filters is None:
-        mlp_filters = x.shape[-1]
-
-    # Self-attention
-    x_orig = x
-    x = norm(x, name=join(name, "mha", "norm"), config=config)
-    x = conv(x, filters=3 * filters, kernel_size=1, stride=1, bias=qkv_bias, name=join(name, "mha", "in_proj"), config=config)
-    query, key, value = tf.split(x, num_or_size_splits=3, axis=-1)
-    x = multihead_attention(query, key, value, heads=heads, name=join(name, "mha"), config=config)
-    x = conv(x, filters=filters, kernel_size=1, stride=1, bias=qkv_bias, name=join(name, "mha", "out_proj"), config=config)
-    x = shortcut(x_orig, x, name=join(name, "mha", "shortcut"), config=config)
-
-    # MLP
-    x_orig = x
-    x = norm(x, name=join(name, "mlp", "norm"), config=config)
-    for i in range(mlp_layers):
-        x = conv(x, filters=mlp_filters if i < mlp_layers - 1 else filters, kernel_size=1, stride=1, bias=True, name=join(name, "mlp", f"{i + 1}", "conv"), config=config)
-        if i < mlp_layers - 1:
-            x = act(x, config=config)
-        # x = tf.keras.layers.Dropout(0.1)(x) # TODO: dropout
-    x = shortcut(x_orig, x, name=join(name, "mlp", "shortcut"), config=config)
-
-    return x
 
 def positional_embedding_learned(x, train_patch_nums=None, new_patch_nums=None, has_class_token=False, name=None, config=config.Config()):
     if (train_patch_nums is None) != (new_patch_nums is None):
@@ -84,38 +53,53 @@ def split_heads(x, heads, config=config.Config()):
 def merge_heads(x, config=config.Config()):
     return einops.apply("b heads tokens filters_per_head -> b tokens (heads filters_per_head)", x)
 
-def multihead_attention(query, key, value, heads=1, name=None, config=config.Config()):
-    # Reduce to single spatial dimension
-    if len(query.shape) > 3:
+def multihead_attention_function(func):
+    def outer(query, key, value, heads=1, name=None, config=config.Config()):
+        # Reduce to single spatial dimension
         result_shape = tf.shape(query)[1:-1]
-        query = einops.apply("b s... f -> b (s...) f", query) # [batch, tokens_q, filters_qk]
-        key = einops.apply("b s... f -> b (s...) f", key) # [batch, tokens_kv, filters_qk]
-        value = einops.apply("b s... f -> b (s...) f", value) # [batch, tokens_kv, filters_v]
-    else:
-        result_shape = None
+        query = einops.apply("b s... f -> b (s...) f", query)
+        key = einops.apply("b s... f -> b (s...) f", key)
+        value = einops.apply("b s... f -> b (s...) f", value)
 
-    # Split heads
-    if heads > 1:
+        # Split heads
         query = split_heads(query, heads, config=config) # [batch, head, tokens_q, filters_qk // heads]
         key = split_heads(key, heads, config=config) # [batch, head, tokens_kv, filters_qk // heads]
         value = split_heads(value, heads, config=config) # [batch, head, tokens_kv, filters_v // heads]
 
-    # Compute attention weights
+        result = func(query, key, value, name=name, config=config)
+
+        # Combine heads
+        result = merge_heads(result, config=config) # [batch, tokens_q, filters_v]
+
+        # Reshape spatial dimensions
+        result = einops.apply("b (s...) f -> b s... f", result, s=result_shape)
+
+        return result
+    return outer
+
+# TODO: attention types: https://github.com/idiap/fast-transformers/tree/master/fast_transformers/attention
+
+# https://proceedings.mlr.press/v119/katharopoulos20a.html
+@multihead_attention_function
+def linear_attention(query, key, value, epsilon=1e-6, name=None, config=config.Config()):
+    query = tf.nn.elu(query) + 1
+    key = tf.nn.elu(key) + 1
+
+    factor = tf.cast(tf.shape(value)[1], value.dtype)
+    value = value / factor # Prevent fp16 overflow
+
+    kv = tf.matmul(key, value, transpose_a=True) # [batch, head, filters_qk // heads, filters_v // heads]
+    z = 1 / (einops.apply("b h tokens_q filters_qk, b h tokens_kv filters_qk -> b h tokens_q", query, key, reduction="sum") + epsilon)
+
+    return einops.apply("b h tokens_q filters_qk, b h filters_qk filters_v, b h tokens_q -> b h tokens_q filters_v", query, kv, z) * factor
+
+# https://arxiv.org/abs/1706.03762
+@multihead_attention_function
+def full_attention(query, key, value, name=None, config=config.Config()):
     query *= query.shape[-1] ** -0.5
     weights = tf.matmul(query, key, transpose_b=True) # [batch, head, tokens_q, tokens_kv]
     # TODO: Add bias?
     weights = tf.nn.softmax(weights, axis=-1) # [batch, head, tokens_q, tokens_kv]
     # TODO: dropout here?
 
-    # Apply attention weights
-    result = tf.matmul(weights, value) # [batch, head, tokens_q, filters_v // heads]
-
-    # Combine heads
-    if heads > 1:
-        result = merge_heads(result, config=config) # [batch, tokens_q, filters_v]
-
-    # Reshape spatial dimensions
-    if not result_shape is None:
-        result = einops.apply("b (s...) f -> b s... f", result, s=result_shape)
-
-    return result
+    return tf.matmul(weights, value) # [batch, head, tokens_q, filters_v // heads]

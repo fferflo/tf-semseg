@@ -50,7 +50,7 @@ def create(input=None, drop_probability=0.0):
 
     x = input
     vit_block = partial(
-        transformer.encode,
+        vit.block,
         filters=768,
         mlp_filters=4 * 768,
         mlp_layers=2,
