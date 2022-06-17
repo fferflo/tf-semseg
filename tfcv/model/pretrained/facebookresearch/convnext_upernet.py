@@ -25,14 +25,14 @@ decoder_config = config_.PytorchConfig(
     resize=config_.partial_with_default_args(config_.resize, align_corners=False),
 )
 
-def create_x(input, convnext_variant, url, drop_probability=0.0, name=None):
+def create_x(input, convnext_variant, url, name=None):
     return_model = input is None
     if input is None:
         input = tf.keras.layers.Input((None, None, 3))
 
     x = input
 
-    shortcut = partial(stochasticdepth.shortcut, drop_probability=drop_probability, scale_at_train_time=True)
+    shortcut = partial(stochasticdepth.shortcut, drop_probability=0.0, scale_at_train_time=True)
     block = partial(convnext.block, shortcut=shortcut, factor=4)
     x = convnext_variant(x, block=block, name=join(name, "convnext"), config=config) # TODO: fix all pretrained model construction methods to take basename argument
 
@@ -53,12 +53,11 @@ def create_x(input, convnext_variant, url, drop_probability=0.0, name=None):
 def make_builder(variant, url):
     class builder:
         @staticmethod
-        def create(input=None, drop_probability=0.0, name=f"convnext_{variant}_upernet"):
+        def create(input=None, name=f"convnext_{variant}_upernet"):
             return create_x(
                 input=input,
                 convnext_variant=vars(convnext)[f"convnext_{variant}"],
                 url=url,
-                drop_probability=drop_probability,
                 name=name,
             )
 

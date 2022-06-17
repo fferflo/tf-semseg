@@ -35,7 +35,7 @@ class DropPath(tf.keras.layers.Layer):
         config["drop_probability"] = self.drop_probability
         return config
 
-def shortcut(shortcut, residual, drop_probability, scale_at_train_time=True, name=None, config=config.Config()):
+def shortcut(shortcut, residual, drop_probability=0.0, scale_at_train_time=True, name=None, config=config.Config()):
     if shortcut.shape[-1] != residual.shape[-1]:
         raise ValueError("Tensors must have same number of channels")
 
