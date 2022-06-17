@@ -123,6 +123,38 @@ class ScaleLayer(tf.keras.layers.Layer): # TODO: move somewhere else
         config["axis"] = self.axis
         return config
 
+class BiasLayer(tf.keras.layers.Layer): # TODO: move somewhere else
+    def __init__(self, initial_value=0, axis=-1, **kwargs):
+        super().__init__(**kwargs)
+        self.initial_value = initial_value
+        if isinstance(axis, int):
+            self.axis = [axis]
+        else:
+            self.axis = axis
+
+    def build(self, input_shape):
+        input_shape = input_shape[1:]
+        shape = np.ones(len(input_shape) if isinstance(input_shape, tuple) else input_shape.rank, dtype="int32")
+        for axis in self.axis:
+            assert axis != 0
+            axis = axis - 1 if axis > 0 else axis
+            shape[axis] = input_shape[axis]
+        self.bias = self.add_weight("bias", shape=shape, initializer="zeros", trainable=True)
+        initial_value = tf.cast(self.initial_value, self.bias.dtype)
+        while len(initial_value.shape) < len(self.bias.shape): # TODO: tfcv util function for this type of broadcasting
+            initial_value = initial_value[tf.newaxis]
+        initial_value = tf.broadcast_to(initial_value, tf.shape(self.bias))
+        self.bias.assign(initial_value)
+
+    def call(self, x):
+        return x + self.bias[tf.newaxis, ...]
+
+    def get_config(self):
+        config = super().get_config()
+        config["initial_value"] = self.initial_value
+        config["axis"] = self.axis
+        return config
+
 def strides_and_dilation_rates(strides, dilate):
     if isinstance(dilate, bool):
         dilate = [dilate] * len(strides)
