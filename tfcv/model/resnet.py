@@ -2,7 +2,6 @@
 
 import tensorflow as tf
 import numpy as np
-import sys
 from .util import *
 from . import config
 
@@ -33,7 +32,7 @@ def stem(x, type, name, config=config.Config()): # For variants, see: https://gi
 
     return x
 
-def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basic-v1", block=conv_norm_act, config=config.Config()):
+def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, kernel_size=3, name="resnet-basic-v1", block=conv_norm_act, config=config.Config()):
     orig_x = x
 
     if filters is None:
@@ -41,7 +40,7 @@ def basic_block_v1(x, filters=None, stride=1, dilation_rate=1, name="resnet-basi
 
     x = block(x, filters=filters, stride=stride, dilation_rate=dilation_rate, name=join(name, "1"), config=config)
 
-    x = conv(x, filters, kernel_size=3, stride=1, bias=False, name=join(name, "2", "conv"), config=config)
+    x = conv(x, filters, kernel_size=kernel_size, stride=1, bias=False, name=join(name, "2", "conv"), config=config)
     x = norm(x, name=join(name, "2", "norm"), config=config)
 
     x = shortcut(orig_x, x, stride=stride, name=join(name, "shortcut"), config=config)
