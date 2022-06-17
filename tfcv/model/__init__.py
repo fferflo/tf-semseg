@@ -21,5 +21,6 @@ from . import upernet
 from . import vit
 from . import psa
 from . import convnext
+from . import segformer
 
 from . import pretrained

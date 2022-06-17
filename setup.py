@@ -19,6 +19,7 @@ setup(
         "numpy",
         "h5py",
         "googledrivedownloader",
+        "gdown",
         "torch",
         "distinctipy",
     ],

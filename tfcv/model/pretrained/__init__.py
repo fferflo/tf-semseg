@@ -9,3 +9,4 @@ from . import openmmlab
 from . import deepmotionairesearch
 from . import delightcmu
 from . import facebookresearch
+from . import nvlabs
