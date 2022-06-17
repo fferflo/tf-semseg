@@ -40,7 +40,7 @@ def pool(x, mode, stride, kernel_size, padding="tensorflow", name=None):
     x, keras_padding = add_padding(x, padding=padding, kernel_size=kernel_size)
     if mode.lower() == "max":
         return tfcv.model.keras.MaxPoolND(pool_size=kernel_size, strides=stride, padding=keras_padding, name=name)(x)
-    elif mode.lower() == "avg":
+    elif mode.lower() == "avg" or mode.lower() == "mean":
         return tfcv.model.keras.AveragePoolingND(pool_size=kernel_size, strides=stride, padding=keras_padding, name=name)(x)
     else:
         raise ValueError(f"Invalid pooling mode {mode}")
@@ -60,6 +60,8 @@ class Config:
         self.pool = pool
         self.resize = resize
 
+    def copy(self):
+        return Config(conv=self.conv, norm=self.norm, act=self.act, pool=self.pool, resize=self.resize)
 
 
 def partial_with_default_args(func, **default_kwargs):

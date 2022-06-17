@@ -41,8 +41,10 @@ def load_pth(file, model, convert_name, ignore=None, map={}):
         all_weights = all_weights["model_state"]
     elif "model" in all_weights:
         all_weights = all_weights["model"]
+
     # for k in all_weights.keys():
     #     print(k)
+    # print()
     # for layer in model.layers:
     #     if len(layer.get_weights()) > 0:
     #         print(layer.name)
