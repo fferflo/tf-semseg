@@ -55,6 +55,13 @@ def norm_act_conv(x, *args, bias=False, name=None, config=config.Config(), **kwa
     x = set_name(x, name=name)
     return x
 
+def norm_conv_act(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
+    x = norm(x, name=join(name, "norm"), config=config)
+    x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
+    x = act(x, config=config)
+    x = set_name(x, name=name)
+    return x
+
 def norm_conv(x, *args, bias=False, name=None, config=config.Config(), **kwargs):
     x = norm(x, name=join(name, "norm"), config=config)
     x = conv(x, *args, bias=bias, name=join(name, "conv"), config=config, **kwargs)
