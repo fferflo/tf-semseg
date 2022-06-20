@@ -220,7 +220,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
     tensors = list(tensors)
     for i in range(len(tensors)):
         if not tf.is_tensor(tensors[i]) and not isinstance(tensors[i], np.ndarray):
-            tensors[i] = tf.convert_to_tensor(tensors[i])
+            tensors[i] = np.asarray(tensors[i])
 
     input_shapes = []
     for tensor in tensors:
@@ -229,10 +229,10 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
         for j in range(len(tensor.shape)):
             static_dim = tensor.shape[j]
             if not static_dim is None:
-                input_shape.append(static_dim)
+                input_shape.append(int(static_dim))
             else:
                 if tf_input_shape is None:
-                    tf_input_shape = tf.shape(tensor)
+                    tf_input_shape = tf.shape(tensor, out_type="int32")
                 input_shape.append(tf_input_shape[j])
         input_shapes.append(input_shape)
 
@@ -281,7 +281,7 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
 
         def map_value(x):
             if tf.is_tensor(x):
-                return tf.cast(x, "int64")
+                return tf.cast(x, "int32")
             else:
                 return x
         return [(a, b, map_value(c)) for a, b, c in result]
@@ -490,12 +490,12 @@ def apply(desc, *tensors, reduction=None, output_shape=None, output_ndims=None, 
                     value = input[0]
                     computed_value = input[1]
                     tensors = input[2:]
-                    tf.debugging.assert_equal(tf.cast(value, "int64"), tf.cast(computed_value, "int64"), msg + f"\nGot conflicting values for {print_name}")
+                    tf.debugging.assert_equal(tf.cast(value, "int32"), tf.cast(computed_value, "int32"), msg + f"\nGot conflicting values for {print_name}")
                     return tensors
                 tensors = tf.keras.layers.Lambda(assertion_function)([value, computed_value] + tensors)
         elif (tf.is_tensor(value) and not tf.keras.backend.is_keras_tensor(value)) or (tf.is_tensor(computed_value) and not tf.keras.backend.is_keras_tensor(computed_value)):
             if add_assertions:
-                tf.debugging.assert_equal(tf.cast(value, "int64"), tf.cast(computed_value, "int64"), traceback.format_exc() + f"\nGot conflicting values for {print_name}")
+                tf.debugging.assert_equal(tf.cast(value, "int32"), tf.cast(computed_value, "int32"), traceback.format_exc() + f"\nGot conflicting values for {print_name}")
         else:
             assert False
 
